@@ -64,10 +64,66 @@ class Ps3Com(object):
         
         return self.device.read(0x81, 0x31, 0)
             
+    
+#     a = array.array('B', (1,) * 0x31)
+#     print a
+    
+  
+            
     def getStatus(self):
         byteArray = self.read()
+        buttonState = int(byteArray[2:4].tostring().encode('hex'), 16)
+        status = {
+            'ReportType' : byteArray[0],                #unsigned char ReportType;         //Report Type 01
+#             
+            'ButtonState' : buttonState, #unsigned int  ButtonState;        // Main buttons
+            'ButtonUp' : (buttonState & 0x1000) > 0,
+            'ButtonDown' : (buttonState & 0x4000) > 0,
+            'ButtonLeft' : (buttonState & 0x8000) > 0,
+            'ButtonRight' : (buttonState & 0x2000) > 0,
+            'ButtonL1' : (buttonState & 0x4) > 0,
+            'ButtonL2' : (buttonState & 0x1) > 0,
+            'ButtonR1' : (buttonState & 0x8) > 0,
+            'ButtonR2' : (buttonState & 0x2) > 0,
+            'ButtonSelect' : (buttonState & 0x100) > 0,
+            'ButtonStart' : (buttonState & 0x800) > 0,
+            'ButtonLeftJoy' : (buttonState & 0x200) > 0,
+            'ButtonRightJoy' : (buttonState & 0x400) > 0,
+            'ButtonTriangle' : (buttonState & 0x10) > 0,
+            'ButtonSquare' : (buttonState & 0x80) > 0,
+            'ButtonCross' : (buttonState & 0x40) > 0, 
+            'ButtonCircle' : (buttonState & 0x20) > 0,              
+            'PSButtonState' : (byteArray[4] & 0x1) > 0,                #unsigned char PSButtonState;      // PS button
+#          
+            'LeftStickX' : byteArray[6],         #// left Joystick X axis 0 - 255, 128 is mid
+            'LeftStickY' : byteArray[7],         #// left Joystick Y axis 0 - 255, 128 is mid
+            'RightStickX' : byteArray[8],        #// right Joystick X axis 0 - 255, 128 is mid
+            'RightStickY' : byteArray[9],        #// right Joystick Y axis 0 - 255, 128 is mid
+#           
+            'PressureUp' : byteArray[14],         #// digital Pad Up button Pressure 0 - 255
+            'PressureRight' : byteArray[15],      #// digital Pad Right button Pressure 0 - 255
+            'PressureDown' : byteArray[16],       #// digital Pad Down button Pressure 0 - 255
+            'PressureLeft' : byteArray[17],       #// digital Pad Left button Pressure 0 - 255
+            'PressureL2' : byteArray[18],         #// digital Pad L2 button Pressure 0 - 255
+            'PressureR2' : byteArray[19],         #// digital Pad R2 button Pressure 0 - 255
+            'PressureL1' : byteArray[20],         #// digital Pad L1 button Pressure 0 - 255
+            'PressureR1' : byteArray[21],         #// digital Pad R1 button Pressure 0 - 255
+            'PressureTriangle' : byteArray[22],   #// digital Pad Triangle button Pressure 0 - 255
+            'PressureCircle' : byteArray[23],     #// digital Pad Circle button Pressure 0 - 255
+            'PressureCross' : byteArray[24],      #// digital Pad Cross button Pressure 0 - 255
+            'PressureSquare' : byteArray[25],     #// digital Pad Square button Pressure 0 - 255
+#         
+            'Charge' : byteArray[29],             #// charging status ? 02 : charge, 03 : normal
+            'Power' : byteArray[30],              #// Battery status
+            'Connection' : byteArray[31],         #// Connection Type
+#          
+            'AccelerometerX' : int(byteArray[41:43].tostring().encode('hex'), 16),     # // X axis accelerometer Big Endian 0 - 1023
+            'AccelerometerY' : int(byteArray[43:45].tostring().encode('hex'), 16),      #       // Y axis accelerometer Big Endian 0 - 1023
+            'AccelerometerZ' : int(byteArray[45:47].tostring().encode('hex'), 16),     # // Z axis accelerometer Big Endian 0 - 1023
+            'GyrometerX' : int(byteArray[47:49].tostring().encode('hex'), 16),         # // Z axis Gyro Big Endian 0 - 1023
+            }
         
-        
+        return status
         
     
     def set_led_and_rumble(self, param):
@@ -96,8 +152,42 @@ class Ps3Com(object):
                                         100)
 
 if __name__ == '__main__':
+#     def axisScale(val, span = 255, deadband = 20):
+#         tmp = val - (span/2.0)
+#         if (abs(tmp) < deadband):
+#             return 0.0
+#         else:
+#             scaledVal = (abs(tmp) - deadband) / float((span/2.0) - deadband)
+#             if tmp < 0:
+#                 scaledVal *= -1
+#             return scaledVal
+#     
 #     test = Ps3Com()
-    a = array.array('B', (1,) * 0x31)
-    print a
+#     def calculateGcode(jStatus):
+#     
+#         xSpeed = axisScale(jStatus['LeftStickX'])
+#         ySpeed = -axisScale(jStatus['LeftStickY'])
+#         zSpeed = axisScale(jStatus['RightStickY'])
+#         xyGain = 1.0
+#         zGain = 1.0
+#         feedRateGain = 5000.0
+#         
+#         gCode = 'G0 '
+#         gCode += 'X%s ' % str(xSpeed * xyGain)
+#         gCode += 'Y%s ' % str(ySpeed * xyGain)
+#         gCode += 'Z%s ' % str(zSpeed * zGain)
+#         gCode += 'F%s' % str(max((abs(xSpeed), abs(ySpeed), abs(zSpeed))) * feedRateGain )
+#         
+#         return gCode
+#     while 1:
+#         jStatus = test.getStatus()
+#         xSpeed = axisScale(jStatus['LeftStickX'])
+#         ySpeed = axisScale(jStatus['LeftStickY'])
+#         zSpeed = axisScale(jStatus['RightStickY'])
+# #         print xSpeed, ySpeed, zSpeed
+#         print calculateGcode(jStatus)
+    pass
     
     
+#     a = array.array('B', (1,) * 0x31)
+#     print a
