@@ -16,11 +16,12 @@ function debug_to_console( $data ) {
 $_time                      = $_POST['time'];
 /* $_time                      ='1417816594542'; */
 $PYTHON_PATH = "/var/www/fabui/application/plugins/joystickjog/assets/python/";
-$TEMP_PATH = $PYTHON_PATH."temp/";
+// $TEMP_PATH = $PYTHON_PATH."temp/";
+$TEMP_PATH = "/var/www/temp/";
 $_destination_trace         = $TEMP_PATH . 'joystickjog_' . $_time . '.trace';
 
 
-shell_exec('sudo chmod 777 '.$TEMP_PATH);
+// shell_exec('sudo chmod 777 '.$TEMP_PATH);
 write_file($_destination_trace, '', 'w');
 chmod($_destination_trace, 0777);
 
