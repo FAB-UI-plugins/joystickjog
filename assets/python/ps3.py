@@ -18,7 +18,6 @@ VID_SONY = 0x054c
 PID_SIXAXIS = 0x0268
 
 
-# This method sets the state of the LEDs and rumble motors on the Game Controller. Values are: */
 LED1 = 0x01
 LED2 = 0x02
 LED3 = 0x04
@@ -151,43 +150,4 @@ class Ps3Com(object):
                                         control_packet,
                                         100)
 
-if __name__ == '__main__':
-#     def axisScale(val, span = 255, deadband = 20):
-#         tmp = val - (span/2.0)
-#         if (abs(tmp) < deadband):
-#             return 0.0
-#         else:
-#             scaledVal = (abs(tmp) - deadband) / float((span/2.0) - deadband)
-#             if tmp < 0:
-#                 scaledVal *= -1
-#             return scaledVal
-#     
-#     test = Ps3Com()
-#     def calculateGcode(jStatus):
-#     
-#         xSpeed = axisScale(jStatus['LeftStickX'])
-#         ySpeed = -axisScale(jStatus['LeftStickY'])
-#         zSpeed = axisScale(jStatus['RightStickY'])
-#         xyGain = 1.0
-#         zGain = 1.0
-#         feedRateGain = 5000.0
-#         
-#         gCode = 'G0 '
-#         gCode += 'X%s ' % str(xSpeed * xyGain)
-#         gCode += 'Y%s ' % str(ySpeed * xyGain)
-#         gCode += 'Z%s ' % str(zSpeed * zGain)
-#         gCode += 'F%s' % str(max((abs(xSpeed), abs(ySpeed), abs(zSpeed))) * feedRateGain )
-#         
-#         return gCode
-#     while 1:
-#         jStatus = test.getStatus()
-#         xSpeed = axisScale(jStatus['LeftStickX'])
-#         ySpeed = axisScale(jStatus['LeftStickY'])
-#         zSpeed = axisScale(jStatus['RightStickY'])
-# #         print xSpeed, ySpeed, zSpeed
-#         print calculateGcode(jStatus)
-    pass
-    
-    
-#     a = array.array('B', (1,) * 0x31)
-#     print a
+

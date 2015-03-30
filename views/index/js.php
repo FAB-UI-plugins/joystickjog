@@ -191,7 +191,7 @@
 	 	
 	 	
 	 	$(".extruder-mode").on('click', function() {
-        
+        	if(!disableInputs){
         	$('.extruder-mode').removeClass('active');
 	    	$('.mode-container').hide();
 	    	$(this).addClass('active');
@@ -202,13 +202,13 @@
 	    	var mode_label = mode == "a" ? '4th axis' : 'Extruder';
 	    	
 	    	$(".mode").html(mode_label);
-	    	  
+        	}  
 	        
 	   	});
 	   	
 	   	
 	   	$("#mdi").keypress(function(e) {
-            if(e.which == 13) {
+            if(e.which == 13 && !disableInputs) {
                 if(!e.shiftKey){
                   mdi(); 
                 }
@@ -781,7 +781,7 @@
 
         $.ajax({
                 type: "POST",
-                url: "/fabui/application/plugins/joystickjog/assets/ajax/startjog.php",
+                url: "/fabui/application/plugins/joystickjog/ajax/startjog.php",
                 data: {
                     time: now
                 },
