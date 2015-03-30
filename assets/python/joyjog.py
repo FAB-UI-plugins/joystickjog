@@ -6,52 +6,32 @@ import ConfigParser
 import logging
 import ps3
 from time import sleep
+import re
 
-global feedrate
 
-global start_time
+
 
 config = ConfigParser.ConfigParser()
 config.read('/var/www/fabui/python/config.ini')
 
 macro_status = config.get('macro', 'status_file')
 
-#read config steps/units
-json_f = open(config.get('printer', 'settings_file'))
-units = json.load(json_f)
-#process params
-
-try:
-    safety_door = int(units['safety']['door'])
-except KeyError:
-    safety_door = 0
-
 try:
       
     log_trace=str(sys.argv[1]) #param for the log file
-#     log_response=str(sys.argv[3]) #param for the log file
+    log_console=str(sys.argv[2]) #param for the log file
+
 except:
     print("Missing params")
     sys.exit()
     
 
 #generic errors
-probe_start_time=0 #start time
+
 s_error=0
 s_warning=0
 s_skipped=0
-feeder_disengage_offset=units['feeder']['disengage-offset'] #mm distance to disable extruder
 
-trace_file=config.get('macro', 'trace_file')
-# response_file=config.get('macro', 'response_file')
-
-logging.basicConfig(filename=log_trace,level=logging.INFO,format='<span class="hidden-xs">[%(asctime)s] -</span> %(message)s',datefmt='%d/%m/%Y %H:%M:%S')
-
-
-
-
-open(trace_file, 'w').close() #reset trace file
-# open(response_file, 'w').close() #reset trace file
 
 def write_status(status):
     global macro_status
@@ -61,6 +41,7 @@ def write_status(status):
     return
 
 #track trace
+
 def trace(string):
     global log_trace
     out_file = open(log_trace,"a+")
@@ -70,6 +51,24 @@ def trace(string):
     print string
     return
 
+consoleStr = ''
+console_file = None
+def console(string = '', action = 'o'):
+    global log_console
+    global console_file
+    if action == 'o':
+      console_file = open(log_console,"w")
+      console_file.write(str(string))
+      console_file.flush()
+    elif action == 'w':
+        console_file.seek(0)
+        console_file.write(str(string))
+        console_file.truncate()
+        console_file.flush()
+    elif action == 'c':
+        console_file.seek(0)
+        console_file.truncate()
+        console_file.close()
 
 #get process pid so the UI can kill it if needed
 #myPID = os.getpid()
@@ -97,9 +96,7 @@ def macro(code,expected_reply,timeout,error_msg,delay_after,warning=False,verbos
                 if serial_reply=="":
                     serial_reply="<nothing>"
                     
-                #trace_msg="failed macro (timeout):"+ code+ " expected "+ expected_reply+ ", received : "+ serial_reply
-                #trace(trace_msg,log_trace)
-                #print trace_msg
+                
                 if not warning:
                     s_error+=1
                     trace(error_msg + ": Failed (" +serial_reply +")")
@@ -153,7 +150,27 @@ def calculateGcode(jStatus):
     move = max((abs(xSpeed), abs(ySpeed), abs(zSpeed))) > 0.0
     
     return gCode, move
-    
+
+rePosCode = re.compile('X:?(.?\d+\.?\d*)\s*Y:?(.?\d+\.?\d*)\s*Z:?(.?\d+\.?\d*)\s*')
+lastPos = (0.0, 0.0, 0.0)
+def updateConsole(stopped, prependString='', gCode = ''):
+    global lastPos
+    if stopped:    
+        serial.write("M114\r\n")
+        posGroup = rePosCode.search(serial.readall().rstrip()).groups()
+        pos = (float(posGroup[0]), float(posGroup[1]), float(posGroup[2]))
+        consoleStats = consoleStr + 'X%0.2f Y%0.2f Z%0.2f' % pos
+        console(consoleStats, 'w')
+        lastPos = pos
+    else:
+        if gCode != '': 
+            posGroup = rePosCode.search(gCode).groups()
+            pos = (float(posGroup[0]), float(posGroup[1]), float(posGroup[2]))
+            lastPos = (lastPos[0] + pos[0],lastPos[1] + pos[1], lastPos[2] +pos[2])
+            consoleStats = consoleStr + 'X%0.2f Y%0.2f Z%0.2f' % lastPos
+            console(consoleStats, 'w')
+            
+
 
 write_status(True)
 '''#### SERIAL PORT COMMUNICATION ####'''
@@ -165,22 +182,34 @@ serial.flushInput()
 
 
 
-reply = macro("G91","ok",1,"set relative movements",1)
-# trace('Serial: ' + reply)
+reply = macro("G91","ok",1,"set relative movements",0)
 
-  
-js = ps3.Ps3Com()
-trace('starting')
+
+try:
+    js = ps3.Ps3Com()
+except:
+    console('Joystick not found!\n')
+    sleep(1)
+    console(action = 'c')
+    sys.exit()
+    
+consoleStr = 'Ready for joystick jog!\n'
+console(consoleStr)
+
+
 buttonSelectMem = False
 zProbeDown = False
+stopped = True
+updateConsole(True, consoleStr)
 while 1:
     status = js.getStatus()
-#     trace(status)
+
     if status['ButtonCircle']:
-        trace('Joystick Jog aborted')
+        console('Joystick Jog aborted\n', 'w')
         break
+    
     if status['ButtonTriangle']:
-		macro("M999","ok",1,"reset",1)
+		macro("M999","ok",1,"reset",0)
 		
 
 		
@@ -188,31 +217,34 @@ while 1:
     if status['ButtonSelect'] and (not buttonSelectMem):
         buttonSelectMem = True
         if not zProbeDown:
-            macro("M401","ok",1,"probe down",1)
+            macro("M401","ok",1,"probe down",0)
             zProbeDown = True
         else:
-            macro("M402","ok",1,"probe up",1)
+            macro("M402","ok",1,"probe up",0)
             zProbeDown = False
     elif (not status['ButtonSelect']) and buttonSelectMem:
         buttonSelectMem = False
 		
 		
     gCode, move = calculateGcode(status)
-#     trace(gCode, move)
+
     if move:
-        #~ trace(gCode)
+
         serial.write(gCode+"\r\n")
         serial_reply=serial.readline().rstrip()
-        #~ trace('Serial: ' + serial_reply)
-        
-		
+        updateConsole(False, consoleStr, gCode)
+        stopped = True
+    elif stopped:
+        stopped = False
+
 
     
 #clean the buffer and leave
 serial.flush()
 serial.close()
 write_status(False)
-#open(trace_file, 'w').close() #reset trace file
+open(log_trace, 'w').close() #reset trace file
+sleep(1)
+console(action = 'c')
 sys.exit()  
-    
     
