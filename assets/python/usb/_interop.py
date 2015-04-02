@@ -80,14 +80,14 @@ except (ImportError, AttributeError):
             return self
         def next(self):
             while self.currkey == self.tgtkey:
-                self.currvalue = _next(self.it)    # Exit on StopIteration
+                self.currvalue = _next(self.it)  # Exit on StopIteration
                 self.currkey = self.keyfunc(self.currvalue)
             self.tgtkey = self.currkey
             return (self.currkey, self._grouper(self.tgtkey))
         def _grouper(self, tgtkey):
             while self.currkey == tgtkey:
                 yield self.currvalue
-                self.currvalue = _next(self.it)    # Exit on StopIteration
+                self.currvalue = _next(self.it)  # Exit on StopIteration
                 self.currkey = self.keyfunc(self.currvalue)
 
 # builtin sorted function is only availale since 2.4 version

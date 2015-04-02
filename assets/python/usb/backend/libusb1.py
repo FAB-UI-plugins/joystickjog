@@ -239,7 +239,7 @@ class _libusb_device_descriptor(Structure):
 class _libusb_iso_packet_descriptor(Structure):
     _fields_ = [('length', c_uint),
                 ('actual_length', c_uint),
-                ('status', c_int)] # enum libusb_transfer_status
+                ('status', c_int)]  # enum libusb_transfer_status
 
 _libusb_device_handle = c_void_p
 
@@ -254,7 +254,7 @@ _libusb_transfer._fields_ = [('dev_handle', _libusb_device_handle),
                              ('endpoint', c_uint8),
                              ('type', c_uint8),
                              ('timeout', c_uint),
-                             ('status', c_int), # enum libusb_transfer_status
+                             ('status', c_int),  # enum libusb_transfer_status
                              ('length', c_int),
                              ('actual_length', c_int),
                              ('callback', _libusb_transfer_cb_fn_p),
@@ -430,7 +430,7 @@ def _setup_prototypes(lib):
             c_uint
         ]
 
-    #int libusb_bulk_transfer(
+    # int libusb_bulk_transfer(
     #           struct libusb_device_handle *dev_handle,
     #           unsigned char endpoint,
     #           unsigned char *data,
@@ -500,7 +500,7 @@ def _setup_prototypes(lib):
             iso_packet_desc.length = length
     lib.libusb_set_iso_packet_lengths = libusb_set_iso_packet_lengths
 
-    #int libusb_get_max_iso_packet_size(libusb_device* dev,
+    # int libusb_get_max_iso_packet_size(libusb_device* dev,
     #                                   unsigned char endpoint);
     lib.libusb_get_max_iso_packet_size.argtypes = [c_void_p,
                                                    c_ubyte]
@@ -577,7 +577,7 @@ def _setup_prototypes(lib):
     except AttributeError:
         pass
 
-    #int libusb_handle_events(libusb_context *ctx);
+    # int libusb_handle_events(libusb_context *ctx);
     lib.libusb_handle_events.argtypes = [c_void_p]
 
 # check a libusb function call
@@ -603,7 +603,7 @@ class _Device(_objfinalizer.AutoFinalizedObject):
 # wrap a descriptor and keep a reference to another object
 # Thanks to Thomas Reitmayr.
 class _WrapDescriptor(object):
-    def __init__(self, desc, obj = None):
+    def __init__(self, desc, obj=None):
         self.obj = obj
         self.desc = desc
     def __getattr__(self, name):
@@ -663,7 +663,7 @@ class _IsoTransferHandler(_objfinalizer.AutoFinalizedObject):
     def _finalize_object(self):
         _lib.libusb_free_transfer(self.transfer)
 
-    def submit(self, ctx = None):
+    def submit(self, ctx=None):
         self.__callback_done = 0
         _check(_lib.libusb_submit_transfer(self.transfer))
 

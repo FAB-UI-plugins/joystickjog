@@ -66,7 +66,7 @@ class _AutoFinalizedObjectBase(object):
 
         Returns: None
         """
-        if not self._finalize_called: # race-free?
+        if not self._finalize_called:  # race-free?
             self._finalize_called = True
             self._finalize_object()
 

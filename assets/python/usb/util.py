@@ -241,7 +241,7 @@ def dispose_resources(device):
     """
     device._ctx.dispose(device)
 
-def get_string(dev, index, langid = None):
+def get_string(dev, index, langid=None):
     r"""Retrieve a string descriptor from the device.
 
     dev is the Device object which the string will be
@@ -273,7 +273,7 @@ def get_string(dev, index, langid = None):
 
     buf = get_descriptor(
                 dev,
-                255, # Maximum descriptor size
+                255,  # Maximum descriptor size
                 DESC_TYPE_STRING,
                 index,
                 langid

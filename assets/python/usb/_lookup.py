@@ -90,5 +90,5 @@ ep_attributes = {
         0x3 : "Interrupt",
         }
 
-MAX_POWER_UNITS_USB2p0 = 2             # mA
-MAX_POWER_UNITS_USB_SUPERSPEED = 8     # mA
+MAX_POWER_UNITS_USB2p0 = 2  # mA
+MAX_POWER_UNITS_USB_SUPERSPEED = 8  # mA

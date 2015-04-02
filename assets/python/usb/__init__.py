@@ -67,7 +67,7 @@ def _setup_log():
                   'critical': logging.CRITICAL}
 
         level = LEVELS.get(debug_level, logging.CRITICAL + 10)
-        logger.setLevel(level = level)
+        logger.setLevel(level=level)
 
         try:
             handler = logging.FileHandler(filename)

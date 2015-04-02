@@ -181,7 +181,7 @@ def load_locate_library(candidates, cygwin_lib, name,
                     s for s in check_symbols if not hasattr(loaded_lib, s)
         ]
         if symbols_missing:
-            msg = ('%r, missing symbols: %r', lib, symbols_missing )
+            msg = ('%r, missing symbols: %r', lib, symbols_missing)
             _LOGGER.error(msg)
             raise LibraryMissingSymbolsException(lib)
         else:

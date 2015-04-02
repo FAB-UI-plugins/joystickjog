@@ -140,7 +140,7 @@ class DeviceHandle(_objfinalizer.AutoFinalizedObject):
         util.dispose_resources(self.dev)
         self.dev = None
 
-    def bulkWrite(self, endpoint, buffer, timeout = 100):
+    def bulkWrite(self, endpoint, buffer, timeout=100):
         r"""Perform a bulk write request to the endpoint specified.
 
             Arguments:
@@ -152,7 +152,7 @@ class DeviceHandle(_objfinalizer.AutoFinalizedObject):
         """
         return self.dev.write(endpoint, buffer, timeout)
 
-    def bulkRead(self, endpoint, size, timeout = 100):
+    def bulkRead(self, endpoint, size, timeout=100):
         r"""Performs a bulk read request to the endpoint specified.
 
             Arguments:
@@ -163,7 +163,7 @@ class DeviceHandle(_objfinalizer.AutoFinalizedObject):
         """
         return self.dev.read(endpoint, size, timeout)
 
-    def interruptWrite(self, endpoint, buffer, timeout = 100):
+    def interruptWrite(self, endpoint, buffer, timeout=100):
         r"""Perform a interrupt write request to the endpoint specified.
 
             Arguments:
@@ -175,7 +175,7 @@ class DeviceHandle(_objfinalizer.AutoFinalizedObject):
         """
         return self.dev.write(endpoint, buffer, timeout)
 
-    def interruptRead(self, endpoint, size, timeout = 100):
+    def interruptRead(self, endpoint, size, timeout=100):
         r"""Performs a interrupt read request to the endpoint specified.
 
             Arguments:
@@ -186,7 +186,7 @@ class DeviceHandle(_objfinalizer.AutoFinalizedObject):
         """
         return self.dev.read(endpoint, size, timeout)
 
-    def controlMsg(self, requestType, request, buffer, value = 0, index = 0, timeout = 100):
+    def controlMsg(self, requestType, request, buffer, value=0, index=0, timeout=100):
         r"""Perform a control request to the default control pipe on a device.
 
         Arguments:
@@ -204,10 +204,10 @@ class DeviceHandle(_objfinalizer.AutoFinalizedObject):
         return self.dev.ctrl_transfer(
                     requestType,
                     request,
-                    wValue = value,
-                    wIndex = index,
-                    data_or_wLength = buffer,
-                    timeout = timeout)
+                    wValue=value,
+                    wIndex=index,
+                    data_or_wLength=buffer,
+                    timeout=timeout)
 
     def clearHalt(self, endpoint):
         r"""Clears any halt status on the specified endpoint.
@@ -265,7 +265,7 @@ class DeviceHandle(_objfinalizer.AutoFinalizedObject):
         """
         self.dev.set_interface_altsetting(self.__claimed_interface, alternate)
 
-    def getString(self, index, length, langid = None):
+    def getString(self, index, length, langid=None):
         r"""Retrieve the string descriptor specified by index
             and langid from a device.
 
@@ -277,7 +277,7 @@ class DeviceHandle(_objfinalizer.AutoFinalizedObject):
         """
         return util.get_string(self.dev, index, langid).encode('ascii')
 
-    def getDescriptor(self, desc_type, desc_index, length, endpoint = -1):
+    def getDescriptor(self, desc_type, desc_index, length, endpoint=-1):
         r"""Retrieves a descriptor from the device identified by the type
         and index of the descriptor.
 
