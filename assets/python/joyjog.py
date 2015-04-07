@@ -106,44 +106,25 @@ def axisScale(val, span=255, deadband=20):
             scaledVal *= -1
         return scaledVal
         
-def calculateGcode(jStatus):
+def calculateGcode(jStatus, gain = 1.0):
     
     xSpeed = axisScale(jStatus['LeftStickX'])
     ySpeed = -axisScale(jStatus['LeftStickY'])
     zSpeed = axisScale(jStatus['RightStickY'])
-    xyGain = 1.0
-    zGain = 0.5
-    feedRateGain = 5000.0
+    xyGain = 1.0 * gain
+    zGain = 0.5 * gain
+    feedRateGain = 5000.0 * gain
     
     gCode = 'G0 '
-    gCode += 'X%0.2f ' % (xSpeed * xyGain)
-    gCode += 'Y%0.2f ' % (ySpeed * xyGain)
-    gCode += 'Z%0.2f ' % (zSpeed * zGain)
+    gCode += 'X%0.3f ' % (xSpeed * xyGain)
+    gCode += 'Y%0.3f ' % (ySpeed * xyGain)
+    gCode += 'Z%0.3f ' % (zSpeed * zGain)
     gCode += 'F%0.0f' % (max((abs(xSpeed), abs(ySpeed), abs(zSpeed))) * feedRateGain)
     
     move = max((abs(xSpeed), abs(ySpeed), abs(zSpeed))) > 0.0
     
     return gCode, move
 
-# rePosCode = re.compile('X:?(.?\d+\.?\d*)\s*Y:?(.?\d+\.?\d*)\s*Z:?(.?\d+\.?\d*)\s*')
-# lastPos = (0.0, 0.0, 0.0)
-# def updateConsole(stopped, prependString='', gCode=''):
-#     global lastPos
-#     if stopped:    
-#         serial.write("M114\r\n")
-#         posGroup = rePosCode.search(serial.readall().rstrip()).groups()
-#         pos = (float(posGroup[0]), float(posGroup[1]), float(posGroup[2]))
-#         consoleStats = consoleStr + 'X%0.2f Y%0.2f Z%0.2f' % pos
-#         console(consoleStats, 'w')
-#         lastPos = pos
-#     else:
-#         if gCode != '': 
-#             posGroup = rePosCode.search(gCode).groups()
-#             pos = (float(posGroup[0]), float(posGroup[1]), float(posGroup[2]))
-#             lastPos = (lastPos[0] + pos[0], lastPos[1] + pos[1], lastPos[2] + pos[2])
-#             consoleStats = consoleStr + 'X%0.2f Y%0.2f Z%0.2f' % lastPos
-#             console(consoleStats, 'w')
-#    
 
 class CarriagePosition():
     
@@ -152,6 +133,7 @@ class CarriagePosition():
         self.mut = Lock()
         self.position = (0, 0, 0)
         self.prependString = ''
+        self.appendString = ''
         self.logFile = logFile
         self._console = None
         self._openLogFile()
@@ -173,10 +155,12 @@ class CarriagePosition():
             self._console.seek(0)
             self._console.truncate()
             self._console.close()
-               
-    
+                  
     def setPrependString(self, string):
         self.prependString = string
+        
+    def setAppendString(self, string):
+        self.appendString = string
     
     def setPostition(self, pos):
         self.mut.acquire()
@@ -195,9 +179,8 @@ class CarriagePosition():
         self.mut.acquire()
         pos = self.position
         self.mut.release()
-        self._writeLogFile(self.prependString + '\nX%0.2f Y%0.2f Z%0.2f' % pos)
+        self._writeLogFile(self.prependString + '\nX%0.2f Y%0.2f Z%0.2f\n' % pos + self.appendString)
         
-    
     def stringToPos(self, string):
         try:
             posGroup = self._rePosCode.search(string).groups()
@@ -240,9 +223,9 @@ def consoleUpdater():
 def jsControl():
     buttonSelectMem = False
     zProbeDown = False
-    
-#     updateConsole(True, consoleStr)
-    
+    speedGain = 1.0
+    speedGainMem = False
+     
     while 1:
         try:
             status = js.getStatus()
@@ -256,11 +239,9 @@ def jsControl():
             break
         
         if status['ButtonTriangle']:
-    		macro("M999", "ok", 1, "reset", 0)
-    		
-    
-    		
-    	''' Lower and raise z-probe with select button '''	
+            macro("M999", "ok", 1, "reset", 0)
+                
+        ''' Lower and raise z-probe with select button '''  
         if status['ButtonSelect'] and (not buttonSelectMem):
             buttonSelectMem = True
             if not zProbeDown:
@@ -275,9 +256,21 @@ def jsControl():
                 zProbeDown = False
         elif (not status['ButtonSelect']) and buttonSelectMem:
             buttonSelectMem = False
-    		
-    		
-        gCode, move = calculateGcode(status)
+                    
+        if status['ButtonDown']:
+            if not speedGainMem and speedGain > 0.05:
+                speedGain -= 0.05
+            speedGainMem = True
+        elif status['ButtonUp']:
+            if not speedGainMem and speedGain < 1.0:
+                speedGain += 0.05
+            speedGainMem = True
+        else:
+            speedGainMem = False
+            
+        console1.setAppendString('Speed: %0.0f%s' % (speedGain*100, '%')
+        
+        gCode, move = calculateGcode(status, speedGain)
     
         if move:
     
