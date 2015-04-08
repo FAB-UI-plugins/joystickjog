@@ -268,7 +268,7 @@ def jsControl():
         else:
             speedGainMem = False
             
-        console1.setAppendString('Speed: %0.0f%s' % (speedGain*100, '%')
+        console1.setAppendString('Speed: %0.0f%s' % (speedGain*100, '%'))
         
         gCode, move = calculateGcode(status, speedGain)
     
