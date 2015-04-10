@@ -92,7 +92,7 @@ class Ps3Com(object):
             'ButtonSquare' : (buttonState & 0x80) > 0,
             'ButtonCross' : (buttonState & 0x40) > 0,
             'ButtonCircle' : (buttonState & 0x20) > 0,
-            'PSButtonState' : (byteArray[4] & 0x1) > 0,  # unsigned char PSButtonState;      // PS button
+            'ButtonPs' : (byteArray[4] & 0x1) > 0,  #       // PS button
 #          
             'LeftStickX' : byteArray[6],  # // left Joystick X axis 0 - 255, 128 is mid
             'LeftStickY' : byteArray[7],  # // left Joystick Y axis 0 - 255, 128 is mid

@@ -8,6 +8,7 @@ import ps3
 from time import sleep
 import re
 from threading import Thread, Lock
+from joyFunctions import FabJoyFunctions
 
 shutdown = False
 
@@ -57,11 +58,11 @@ def macro(code, expected_reply, timeout, error_msg, delay_after, warning=False, 
     global s_error
     global s_warning
     global s_skipped
-    serial.flushInput()
+    serialPort.flushInput()
     if s_error == 0:
         serial_reply = ""
         macro_start_time = time.time()
-        serial.write(code + "\r\n")
+        serialPort.write(code + "\r\n")
         if verbose:
             trace(error_msg)
         time.sleep(0.3)  # give it some tome to start
@@ -82,7 +83,7 @@ def macro(code, expected_reply, timeout, error_msg, delay_after, warning=False, 
                     trace(error_msg + ": Warning! ")
                 return False  # leave the function
        
-            serial_reply = serial.readline().rstrip()
+            serial_reply = serialPort.readline().rstrip()
           
             # add safety timeout
             time.sleep(0.2)  # no hammering
@@ -96,34 +97,6 @@ def macro(code, expected_reply, timeout, error_msg, delay_after, warning=False, 
    
     return serial_reply
 
-def axisScale(val, span=255, deadband=20):
-    tmp = val - (span / 2.0)
-    if (abs(tmp) < deadband):
-        return 0.0
-    else:
-        scaledVal = (abs(tmp) - deadband) / float((span / 2.0) - deadband)
-        if tmp < 0:
-            scaledVal *= -1
-        return scaledVal
-        
-def calculateGcode(jStatus, gain = 1.0):
-    
-    xSpeed = axisScale(jStatus['LeftStickX'])
-    ySpeed = -axisScale(jStatus['LeftStickY'])
-    zSpeed = axisScale(jStatus['RightStickY'])
-    xyGain = 1.0 * gain
-    zGain = 0.5 * gain
-    feedRateGain = 5000.0 * gain
-    
-    gCode = 'G0 '
-    gCode += 'X%0.3f ' % (xSpeed * xyGain)
-    gCode += 'Y%0.3f ' % (ySpeed * xyGain)
-    gCode += 'Z%0.3f ' % (zSpeed * zGain)
-    gCode += 'F%0.0f' % (max((abs(xSpeed), abs(ySpeed), abs(zSpeed))) * feedRateGain)
-    
-    move = max((abs(xSpeed), abs(ySpeed), abs(zSpeed))) > 0.0
-    
-    return gCode, move
 
 
 class CarriagePosition():
@@ -207,9 +180,8 @@ write_status(True)
 serial_port = config.get('serial', 'port')
 serial_baud = config.get('serial', 'baud')
 
-serial = serial.Serial(serial_port, serial_baud, timeout=0.5)
-serial.flushInput()
-
+serialPort = serial.Serial(serial_port, serial_baud, timeout=0.5)
+serialPort.flushInput()
 macro("G91", "ok", 1, "set relative movements", 0)
  
 
@@ -221,11 +193,9 @@ def consoleUpdater():
             break
       
 def jsControl():
-    buttonSelectMem = False
-    zProbeDown = False
-    speedGain = 1.0
-    speedGainMem = False
-     
+    
+    functions = FabJoyFunctions(serialPort, console1)
+      
     while 1:
         try:
             status = js.getStatus()
@@ -237,53 +207,15 @@ def jsControl():
         if status['ButtonCircle']:
             console1.setPrependString('Joystick Jog aborted\n')
             break
-        
-        if status['ButtonTriangle']:
-            macro("M999", "ok", 1, "reset", 0)
-                
-        ''' Lower and raise z-probe with select button '''  
-        if status['ButtonSelect'] and (not buttonSelectMem):
-            buttonSelectMem = True
-            if not zProbeDown:
-#                 macro("M401","ok",1,"probe down",0)
-                serial.write("M401\r\n")
-                serial.readall()
-                zProbeDown = True
-            else:
-#                 macro("M402","ok",1,"probe up",0)
-                serial.write("M402\r\n")
-                serial.readall()
-                zProbeDown = False
-        elif (not status['ButtonSelect']) and buttonSelectMem:
-            buttonSelectMem = False
-                    
-        if status['ButtonDown']:
-            if not speedGainMem and speedGain > 0.05:
-                speedGain -= 0.05
-            speedGainMem = True
-        elif status['ButtonUp']:
-            if not speedGainMem and speedGain < 1.0:
-                speedGain += 0.05
-            speedGainMem = True
-        else:
-            speedGainMem = False
-            
-        console1.setAppendString('Speed: %0.0f%s' % (speedGain*100, '%'))
-        
-        gCode, move = calculateGcode(status, speedGain)
-    
-        if move:
-    
-            serial.write(gCode + "\r\n")
-            serial.readline().rstrip()
-            console1.updatePosition(console1.stringToPos(gCode))
+                             
+        functions.callFunctions(status)
 
 consoleThread = Thread(target=consoleUpdater)
 consoleThread.setDaemon(True)
 consoleThread.start()  
 
-serial.write("M114\r\n")
-console1.setPostition(console1.stringToPos(serial.readall().rstrip()))
+serialPort.write("M114\r\n")
+console1.setPostition(console1.stringToPos(serialPort.readall().rstrip()))
 
 jsThread = Thread(target=jsControl)   
 jsThread.setDaemon(True)
@@ -298,8 +230,8 @@ sleep(1)
 shutdown = True
 consoleThread.join()
 # clean the buffer and leave
-serial.flush()
-serial.close()
+serialPort.flush()
+serialPort.close()
 write_status(False)
 open(log_trace, 'w').close()  # reset trace file
 console1.closeLogFile()
