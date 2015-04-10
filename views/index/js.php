@@ -8,6 +8,7 @@
 	var firstEntry=true;
 	var showTemperatureConsole = false;
 	var disableInputs = false;
+	var joyActive = false;
 
 	
 	$(function() { 
@@ -541,7 +542,7 @@
 	
 	function ticker(){
 		
-		if(!SOCKET_CONNECTED){
+		if(!SOCKET_CONNECTED || joyActive){
 		    if(ticker_url != ''){
 				getTrace(ticker_url, 'GET', $(".console"));
 		    }
@@ -778,6 +779,7 @@
         disableInputs = true;
         var now = jQuery.now();
         ticker_url = '/temp/joystickjog_console';
+        joyActive = true;
 
         $.ajax({
                 type: "POST",
@@ -791,6 +793,7 @@
             	$(".btn").removeClass('disabled');
 //             	$(".noUiSlider").removeClass('disabled');
             	disableInputs = false;
+            	joyActive = false;
             	ticker_url = '';
             });
     }

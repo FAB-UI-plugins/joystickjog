@@ -16,7 +16,7 @@ class FabJoyFunctions(object):
 #                                 'xAxis'         : ('Move head in x-direction', False),
 #                                 'yAxis'         : ('Move head in y-direction', False),
 #                                 'zAxis'         : ('Move head in z-direction', False),
-                                'eAxis'         : ('Extruder', False),
+                                'eAxis'         : ('Extruder', True),
                                 'notUsed'       : ('Joystick not used', False)
                                 },
                     'discrete':{
@@ -25,12 +25,12 @@ class FabJoyFunctions(object):
                                 'decFeedrate'   : ('Decrease Feedrate', True),
                                 'reset'         : ('Reset safety stop', False),
                                 'setZero'       : ('Set Zero position', False),
-                                'gotoZero'       : ('Go to Zero position', False),
+                                'gotoZero'      : ('Go to Zero position', True),
                                 'notUsed'       : ('Button not used', False)
                                 },
                     'analog'  :{
-                                'eAxisCw'       : ('Extruder', True),
-                                'eAxisCcw'      : ('Extruder', True)
+                                'eAxisFwd'      : ('Extruder Forward', True),
+                                'eAxisRev'      : ('Extruder Reverse', True)
                                 }
                     }
 
@@ -39,12 +39,12 @@ class FabJoyFunctions(object):
         self.serialPort = serialPort
         self.console = console
         self.activeFunctions = {}
-        self._setupFunctionList()
+        self._setupFunctions()
         self.feedRateOverride = 1.0
         
     
     def _setupFunctions(self):
-        f = open('jsbuttons.json', 'r')
+        f = open('/var/www/fabui/application/plugins/joystickjog/assets/python/jsbuttons.json', 'r')
         fc = f.read()
         jsonD = JSONDecoder()
         funcDict = jsonD.decode(fc)
@@ -71,8 +71,8 @@ class FabJoyFunctions(object):
         ySpeed = -self._axisScale(jStatus['LeftStickY'])
         zSpeed = self._axisScale(jStatus['RightStickY'])
         xyGain = 1.0 * gain
-        zGain = 0.5 * gain
-        feedRateGain = 5000.0 * gain
+        zGain = 0.3 * gain
+        feedRateGain = 3000.0 * gain
         
         gCode = 'G0 '
         gCode += 'X%0.3f ' % (xSpeed * xyGain)
@@ -119,11 +119,35 @@ class FabJoyFunctions(object):
     def eAxis(self, dVal, aVal, param):
         pass
     
-    def eAxisCw(self, dVal, aVal, param):
-        pass
-    
-    def eAxisCcw(self, dVal, aVal, param):
-        pass
+    def eAxisFwd(self, dVal, aVal, param):
+        if aVal > 0:
+            self.console.setAppendString('E-axis Forward')
+            try:
+                param = float(param)
+                if not 10.0 <= param <= 1000.0:
+                    param = 500.0
+            except:
+                param = 500.0
+            
+            feedrate = (aVal/255.0) * param
+            feed = (aVal/255.0) * (param/500.0) * 10.0
+            self.serialPort.write("G0 E%0.3f F%0.0f\r\n" % (feed, feedrate))
+            self.serialPort.readall()    
+            
+    def eAxisRev(self, dVal, aVal, param):
+        if aVal > 0:
+            self.console.setAppendString('E-axis Reverse')
+            try:
+                param = float(param)
+                if not 10.0 <= param <= 1000.0:
+                    param = 500.0
+            except:
+                param = 500.0
+            
+            feedrate = (aVal/255.0) * param
+            feed = (aVal/255.0) * (param/500.0) * 10.0
+            self.serialPort.write("G0 E-%0.3f F%0.0f\r\n" % (feed, feedrate))
+            self.serialPort.readall()
     
     zProbeDown = False
     zProbeMem = False
@@ -150,30 +174,63 @@ class FabJoyFunctions(object):
             self.console.setAppendString('Reset safety warning')
             
     def incFeedRate(self, dVal, aVal, param):
-        step = float(param) / 100.0
         if dVal:
+            try:
+                step = float(param) / 100.0
+            except:
+                step = 0.05
+                
             self.feedRateOverride += step
             if self.feedRateOverride > 2.0:
                 self.feedRateOverride = 2.0
             
             self.console.setAppendString('Speed: %0.0f%s' % (self.feedRateOverride*100, '%'))
             time.sleep(0.5)
-            
+           
     def decFeedRate(self, dVal, aVal, param):
-        step = float(param) / 100.0
         if dVal:
-            self.feedRateOverride += step
-            if self.feedRateOverride < 0.05:
-                self.feedRateOverride = 0.05
+            try:
+                step = float(param) / 100.0
+            except:
+                step = 0.05
+             
+            self.feedRateOverride -= step
+            if self.feedRateOverride < 0.0:
+                self.feedRateOverride = 0.0
             
             self.console.setAppendString('Speed: %0.0f%s' % (self.feedRateOverride*100, '%'))
             time.sleep(0.5)
        
     def setZero(self, dVal, aVal, param):
-        pass
-    
+        if dVal:
+            self.console.setAppendString('Set Zero position')
+            self.serialPort.write("G92 X0 Y0 Z0\r\n")
+            self.serialPort.readall() 
+            
+            
+            self.serialPort.write("M114\r\n")
+            self.console.setPostition(self.console.stringToPos(self.serialPort.readall().rstrip()))
+
     def gotoZero(self, dVal, aVal, param):
-        pass
+        if dVal:
+            try:
+                param = float(param)
+                if not 100.0 <= param <= 5000.0:
+                    param = 3000.0
+            except:
+                param = 3000.0
+                
+            self.console.setAppendString('Goto zero position')
+            self.serialPort.write("G90\r\n")
+            self.serialPort.readall()
+            self.serialPort.write("G0 X0 Y0 Z0 F%0.0f\r\n" % (param,))
+            self.serialPort.readall() 
+            self.serialPort.write("G91\r\n")
+            self.serialPort.readall()
+            
+            
+            self.serialPort.write("M114\r\n")
+            self.console.setPostition(self.console.stringToPos(self.serialPort.readall().rstrip()))
     
     def notUsed(self, dVal, aVal, param):
         pass

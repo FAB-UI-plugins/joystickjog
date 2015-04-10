@@ -60,7 +60,8 @@ class Ps3Com(object):
         return dev
 
     def read(self):
-        
+        '''Discard one read() to get current status'''
+        self.device.read(0x81, 0x31, 0)
         return self.device.read(0x81, 0x31, 0)
             
     
