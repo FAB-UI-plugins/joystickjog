@@ -27,6 +27,8 @@ class FabJoyFunctions(object):
                                 'setZero'           : ('Set Zero position', False),
                                 'gotoZero'          : ('Go to Zero position', True),
                                 'toggleSlowSpeed'   : ('Toggle slow speed on/off', True),
+                                'toggleExtTemp'     : ('Toggle Extruder temp between 0 and param', True),
+                                'toggleBedTemp'     : ('Toggle Bed temp between 0 and param', True),
                                 'notUsed'           : ('Button not used', False)
                                 },
                     'analog'  :{
@@ -66,7 +68,7 @@ class FabJoyFunctions(object):
                 scaledVal *= -1
             return scaledVal
             
-    def _calculateGcode(self, jStatus, gain = 1.0):
+    def _calculateGcode(self, jStatus, gain=1.0):
         
         xSpeed = self._axisScale(jStatus['LeftStickX'])
         ySpeed = -self._axisScale(jStatus['LeftStickY'])
@@ -130,8 +132,8 @@ class FabJoyFunctions(object):
             except:
                 param = 500.0
             
-            feedrate = (aVal/255.0) * param
-            feed = (aVal/255.0) * (param/500.0) * 10.0
+            feedrate = (aVal / 255.0) * param
+            feed = (aVal / 255.0) * (param / 500.0) * 10.0
             self.serialPort.write("G0 E%0.3f F%0.0f\r\n" % (feed, feedrate))
             self.serialPort.readall()    
             
@@ -145,8 +147,8 @@ class FabJoyFunctions(object):
             except:
                 param = 500.0
             
-            feedrate = (aVal/255.0) * param
-            feed = (aVal/255.0) * (param/500.0) * 10.0
+            feedrate = (aVal / 255.0) * param
+            feed = (aVal / 255.0) * (param / 500.0) * 10.0
             self.serialPort.write("G0 E-%0.3f F%0.0f\r\n" % (feed, feedrate))
             self.serialPort.readall()
     
@@ -173,6 +175,8 @@ class FabJoyFunctions(object):
             self.serialPort.write("M999\r\n")
             self.serialPort.readall() 
             self.console.setAppendString('Reset safety warning')
+            self.serialPort.write("M300\r\n")
+            self.serialPort.readall()
             
     def incFeedRate(self, dVal, aVal, param):
         if dVal:
@@ -185,7 +189,9 @@ class FabJoyFunctions(object):
             if self.feedRateOverride > 2.0:
                 self.feedRateOverride = 2.0
             
-            self.console.setAppendString('Speed: %0.0f%s' % (self.feedRateOverride*100, '%'))
+            self.console.setAppendString('Speed: %0.0f%s' % (self.feedRateOverride * 100, '%'))
+            self.serialPort.write("M300\r\n")
+            self.serialPort.readall()
             time.sleep(0.5)
            
     def decFeedRate(self, dVal, aVal, param):
@@ -199,14 +205,21 @@ class FabJoyFunctions(object):
             if self.feedRateOverride < 0.0:
                 self.feedRateOverride = 0.0
             
-            self.console.setAppendString('Speed: %0.0f%s' % (self.feedRateOverride*100, '%'))
+            self.console.setAppendString('Speed: %0.0f%s' % (self.feedRateOverride * 100, '%'))
+            self.serialPort.write("M300\r\n")
+            self.serialPort.readall()
             time.sleep(0.5)
        
     def setZero(self, dVal, aVal, param):
         if dVal:
             self.console.setAppendString('Set Zero position')
             self.serialPort.write("G92 X0 Y0 Z0\r\n")
-            self.serialPort.readall() 
+            self.serialPort.readall()
+            
+            self.serialPort.write("M300\r\n")
+            self.serialPort.readall()
+            self.serialPort.write("M300\r\n")
+            self.serialPort.readall()
             
             
             self.serialPort.write("M114\r\n")
@@ -260,6 +273,71 @@ class FabJoyFunctions(object):
                 self.serialPort.readall()
         elif not dVal and self.toggleSlowSpeedMem:
             self.toggleSlowSpeedMem = False
+    
+    toggleExtTempSp = 0.0
+    toggleExtTempMem = False
+    def toggleExtTemp(self, dVal, aVal, param):
+        
+        if dVal and not self.toggleExtTempMem:
+            try:
+                param = float(param)
+                if not 0.0 < param <= 230.0:
+                    param = 190.0
+            except:
+                param = 190.0
+                
+            self.toggleExtTempMem = True
+            if self.toggleExtTempSp == 0.0:
+                self.toggleExtTempSp = param
+                self.console.setAppendString('Set Extruder temp to %0.0fC' % (param,))
+                self.serialPort.write("M104 S%0.0f\r\n" % (param,))
+                self.serialPort.readall()
+                self.serialPort.write("M300\r\n")
+                self.serialPort.readall()
+                self.serialPort.write("M300\r\n")
+                self.serialPort.readall()
+            else:
+                self.toggleExtTempSp = 0.0
+                self.console.setAppendString('Set Extruder temp to 0C')
+                self.serialPort.write("M104 S0\r\n")
+                self.serialPort.readall()
+                self.serialPort.write("M300\r\n")
+                self.serialPort.readall()
+        elif not dVal and self.toggleExtTempMem:
+            self.toggleExtTempMem = False
+    
+    toggleBedTempSp = 0.0
+    toggleBedTempMem = False
+    def toggleBedTemp(self, dVal, aVal, param):
+        
+        if dVal and not self.toggleBedTempMem:
+            try:
+                param = float(param)
+                if not 0.0 < param <= 100.0:
+                    param = 60.0
+            except:
+                param = 60.0
+                
+            self.toggleBedTempMem = True
+            if self.toggleBedTempSp == 0.0:
+                self.toggleBedTempSp = param
+                self.console.setAppendString('Set Bed temp to %0.0fC' % (param,))
+                self.serialPort.write("M140 S%0.0f\r\n" % (param,))
+                self.serialPort.readall()
+                self.serialPort.write("M300\r\n")
+                self.serialPort.readall()
+                self.serialPort.write("M300\r\n")
+                self.serialPort.readall()
+            else:
+                self.toggleBedTempSp = 0.0
+                self.console.setAppendString('Set Bed temp to 0C')
+                self.serialPort.write("M140 S0\r\n")
+                self.serialPort.readall()
+                self.serialPort.write("M300\r\n")
+                self.serialPort.readall()
+        elif not dVal and self.toggleBedTempMem:
+            self.toggleBedTempMem = False
+    
     
     def notUsed(self, dVal, aVal, param):
         pass

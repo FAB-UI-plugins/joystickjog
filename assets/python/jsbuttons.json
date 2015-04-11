@@ -14,10 +14,10 @@
 "ButtonDown": {"type": ["analog", "discrete"], "modify": true, "function": "decFeedRate", "param": "5"}, 
 "ButtonUp": {"type": ["analog", "discrete"], "modify": true, "function": "incFeedRate", "param": "5"}, 
 "ButtonLeft": {"type": ["analog", "discrete"], "modify": true, "function": "notUsed", "param": ""}, 
-"ButtonCross": {"type": ["analog", "discrete"], "modify": true, "function": "notUsed", "param": ""}, 
+"ButtonCross": {"type": ["analog", "discrete"], "modify": true, "function": "toggleExtTemp", "param": "210"}, 
 "ButtonStart": {"type": ["discrete"], "modify": true, "function": "setZero", "param": ""}, 
-"ButtonCircle": {"type": ["analog", "discrete"], "modify": true, "function": "notUsed", "param": ""}, 
+"ButtonCircle": {"type": ["analog", "discrete"], "modify": false, "function": "notUsed", "param": ""}, 
 "ButtonSelect": {"type": ["discrete"], "modify": true, "function": "zProbe", "param": ""}, 
-"ButtonSquare": {"type": ["analog", "discrete"], "modify": true, "function": "notUsed", "param": ""}, 
+"ButtonSquare": {"type": ["analog", "discrete"], "modify": true, "function": "toggleBedTemp", "param": "65"}, 
 "ButtonTriangle": {"type": ["analog", "discrete"], "modify": true, "function": "notUsed", "param": ""}
 }
