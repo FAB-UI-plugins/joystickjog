@@ -3,7 +3,7 @@
 "LeftStickX": {"type": ["joystick"], "modify": false, "function": "notUsed", "param": ""},
 "RightStickY": {"type": ["joystick"], "modify": false, "function": "notUsed", "param": ""}, 
 "RightStickX": {"type": ["joystick"], "modify": true, "function": "notUsed", "param": ""},
-"ButtonL1": {"type": ["analog", "discrete"], "modify": true, "function": "notUsed", "param": ""}, 
+"ButtonL1": {"type": ["analog", "discrete"], "modify": true, "function": "toggleSlowSpeed", "param": "5"}, 
 "ButtonL2": {"type": ["analog", "discrete"], "modify": true, "function": "eAxisRev", "param": "300"},  
 "ButtonLeftJoy": {"type": ["discrete"], "modify": true, "function": "gotoZero", "param": "1000"}, 
 "ButtonRight": {"type": ["analog", "discrete"], "modify": true, "function": "notUsed", "param": ""},  

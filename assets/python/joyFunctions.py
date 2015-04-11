@@ -16,21 +16,22 @@ class FabJoyFunctions(object):
 #                                 'xAxis'         : ('Move head in x-direction', False),
 #                                 'yAxis'         : ('Move head in y-direction', False),
 #                                 'zAxis'         : ('Move head in z-direction', False),
-                                'eAxis'         : ('Extruder', True),
-                                'notUsed'       : ('Joystick not used', False)
+                                'eAxis'             : ('Extruder', True),
+                                'notUsed'           : ('Joystick not used', False)
                                 },
                     'discrete':{
-                                'zProbe'        : ('Lower and raise z-probe', False),
-                                'incFeedRate'   : ('Increase Feedrate', True),
-                                'decFeedrate'   : ('Decrease Feedrate', True),
-                                'reset'         : ('Reset safety stop', False),
-                                'setZero'       : ('Set Zero position', False),
-                                'gotoZero'      : ('Go to Zero position', True),
-                                'notUsed'       : ('Button not used', False)
+                                'zProbe'            : ('Lower and raise z-probe', False),
+                                'incFeedRate'       : ('Increase Feedrate', True),
+                                'decFeedrate'       : ('Decrease Feedrate', True),
+                                'reset'             : ('Reset safety stop', False),
+                                'setZero'           : ('Set Zero position', False),
+                                'gotoZero'          : ('Go to Zero position', True),
+                                'toggleSlowSpeed'   : ('Toggle slow speed on/off', True),
+                                'notUsed'           : ('Button not used', False)
                                 },
                     'analog'  :{
-                                'eAxisFwd'      : ('Extruder Forward', True),
-                                'eAxisRev'      : ('Extruder Reverse', True)
+                                'eAxisFwd'          : ('Extruder Forward', True),
+                                'eAxisRev'          : ('Extruder Reverse', True)
                                 }
                     }
 
@@ -231,6 +232,34 @@ class FabJoyFunctions(object):
             
             self.serialPort.write("M114\r\n")
             self.console.setPostition(self.console.stringToPos(self.serialPort.readall().rstrip()))
+            
+    
+    toggleSlowSpeedMem = False
+    def toggleSlowSpeed(self, dVal, aVal, param):
+        
+        if dVal and not self.toggleSlowSpeedMem:
+            try:
+                param = float(param) / 100.0
+                if not 0.0 < param <= 1.0:
+                    param = 0.05
+            except:
+                param = 0.05
+                
+            self.toggleSlowSpeedMem = True
+            if self.feedRateOverride > param:
+                self.feedRateOverride = param
+                self.console.setAppendString('Set creep speed')
+                self.serialPort.write("M300\r\n")
+                self.serialPort.readall()
+                self.serialPort.write("M300\r\n")
+                self.serialPort.readall()
+            else:
+                self.feedRateOverride = 1.0
+                self.console.setAppendString('Set normal speed')
+                self.serialPort.write("M300\r\n")
+                self.serialPort.readall()
+        elif not dVal and self.toggleSlowSpeedMem:
+            self.toggleSlowSpeedMem = False
     
     def notUsed(self, dVal, aVal, param):
         pass

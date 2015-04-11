@@ -24,3 +24,4 @@ The following functions is set in the default config file:
 	L2 Button		: Extruder retract
 	Start Button	: Set X,Y and Z zero position.
 	Left JS Button	: Goto zero position
+	L1 Button		: Toggle between 5 and 100% feedrate
