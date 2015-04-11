@@ -26,5 +26,5 @@ The following functions is set in the default config file:<br>
 	Start Button	: Set X,Y and Z zero position.<br>
 	Left JS Button	: Goto zero position				 (Feedate can be set in the config file)<br>
 	L1 Button		: Toggle between 5 and 100% feedrate (Slow rate can be set in the config file)<br>
-	Square Button	: Toggle Bed temp between 0 and 210C (Temp can be set in the config file)<br>
-    Cross Button	: Toggle Bed temp between 0 and 65C  (Temp can be set in the config file)<br>
+	Square Button	: Toggle Bed temp between 0 and 65C (Temp can be set in the config file)<br>
+    Cross Button	: Toggle Extruder temp between 0 and 210C  (Temp can be set in the config file)<br>

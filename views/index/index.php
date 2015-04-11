@@ -4,6 +4,7 @@
 		<h1 class="page-title txt-color-blueDark"><i class="icon-fab-jog fab-fw"></i> Jog</h1>
 	</div>
 	<div class="col-xs-8 col-sm-8 text-right">
+		<a id="update" class="btn btn-info " href="<?php echo site_url("joystickjog/update") ?>"  title="Update Plugin">Update Plugin</a>
 		<a id="reset-controller" class="btn btn-info " href="javascript:void(0)"  title="Reset Controller">Reset controller</a>
 	</div>
 </div>

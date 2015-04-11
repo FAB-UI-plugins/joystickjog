@@ -15,7 +15,6 @@ shutdown = False
 config = ConfigParser.ConfigParser()
 config.read('/var/www/fabui/python/config.ini')
 
-macro_status = config.get('macro', 'status_file')
 
 try:
       
@@ -27,22 +26,6 @@ except:
     sys.exit()
     
 
-# generic errors
-
-s_error = 0
-s_warning = 0
-s_skipped = 0
-
-
-def write_status(status):
-    global macro_status
-    json = '{"type": "status", "status": ' + str(status).lower() + '}'
-    handle = open(macro_status, 'w+')
-    print >> handle, json
-    return
-
-# track trace
-
 def trace(string):
     global log_trace
     out_file = open(log_trace, "a+")
@@ -53,51 +36,15 @@ def trace(string):
     return
 
 
-
-def macro(code, expected_reply, timeout, error_msg, delay_after, warning=False, verbose=True):
-    global s_error
-    global s_warning
-    global s_skipped
-    serialPort.flushInput()
-    if s_error == 0:
-        serial_reply = ""
-        macro_start_time = time.time()
-        serialPort.write(code + "\r\n")
-        if verbose:
-            trace(error_msg)
-        time.sleep(0.3)  # give it some tome to start
-        while not (serial_reply == expected_reply or serial_reply[:4] == expected_reply):
-            # Expected reply
-            # no reply:
-            if (time.time() >= macro_start_time + timeout + 5):
-    
-                if serial_reply == "":
-                    serial_reply = "<nothing>"
-                    
-                
-                if not warning:
-                    s_error += 1
-                    trace(error_msg + ": Failed (" + serial_reply + ")")
-                else:
-                    s_warning += 1
-                    trace(error_msg + ": Warning! ")
-                return False  # leave the function
-       
-            serial_reply = serialPort.readline().rstrip()
-          
-            # add safety timeout
-            time.sleep(0.2)  # no hammering
-            pass
-       
-        time.sleep(delay_after)  # wait the desired amount
-    else:
-        trace(error_msg + ": Skipped")
-        s_skipped += 1
+def is_number(s):
+    try:
+        float(s)
+        return True
+    except ValueError:
         return False
-   
-    return serial_reply
 
-
+def getShutdown():
+    return shutdown
 
 class CarriagePosition():
     
@@ -107,6 +54,7 @@ class CarriagePosition():
         self.position = (0, 0, 0)
         self.prependString = ''
         self.appendString = ''
+        self.temperatureString = ''
         self.logFile = logFile
         self._console = None
         self._openLogFile()
@@ -134,6 +82,9 @@ class CarriagePosition():
         
     def setAppendString(self, string):
         self.appendString = string
+        
+    def setTemperatureString(self, string):
+        self.temperatureString = string
     
     def setPostition(self, pos):
         self.mut.acquire()
@@ -152,7 +103,7 @@ class CarriagePosition():
         self.mut.acquire()
         pos = self.position
         self.mut.release()
-        self._writeLogFile(self.prependString + '\nX%0.2f Y%0.2f Z%0.2f\n' % pos + self.appendString)
+        self._writeLogFile(self.prependString + self.temperatureString + '\nX%0.2f Y%0.2f Z%0.2f\n' % pos + self.appendString)
         
     def stringToPos(self, string):
         try:
@@ -162,6 +113,109 @@ class CarriagePosition():
         except:
             return (0.0, 0.0, 0.0)
 
+class GcodeSerial(serial.Serial):
+         
+    def __init__(self, serial_port, serial_baud, timeout, shutdown):
+        serial.Serial.__init__(self, serial_port, serial_baud, timeout=timeout)
+        self.shutdown = shutdown
+        self.received = 0
+        self.sent = 0
+        self.lastPositionReply = ''
+        self.lastTemperatureReply = ''
+        self.listenThread = Thread(target=self.listener)
+        self.listenThread.setDaemon(True)
+        self.listenThread.start()
+        
+        
+    def write(self, data):
+        while self.received<self.sent and self.sent>0 and not self.shutdown():
+            pass #wait!
+#         print 'Sent: %i, received: %i' % (self.sent, self.received)
+#         console1.setAppendString('Sent: %i, received: %i' % (self.sent, self.received))
+        self.sent += 1
+        
+        return serial.Serial.write(self, data)
+    
+    
+    def listener(self):
+
+        resend = 0
+        
+        serial_in=""    
+        while not self.shutdown():
+            
+            while serial_in=="" and not self.shutdown():
+                serial_in=self.readline().rstrip()
+                #time.sleep(0.05)
+                pass #wait!
+#             print serial_in
+            if serial_in=="ok":
+                #print "received ok"
+                self.received+=1
+                #print "sent: "+str(sent) +" rec: " +str(received)
+    
+            ##error
+            if serial_in[:6]=="Resend":
+                #resend line
+                resend=serial_in.split(":")[1].rstrip()
+                self.received-=1 #lost a line!
+#                 trace("Error: Line no "+str(resend) + " has not been received correctly")
+                
+
+            if serial_in[:4]=="ok T":
+                #Collected M105: Get Extruder & bed Temperature (reply)
+                #EXAMPLE:
+                #ok T:219.7 /220.0 B:26.3 /0.0 T0:219.7 /220.0 @:35 B@:0
+                #trace(serial_in);
+                self.lastTemperatureReply = serial_in
+                                
+                self.received+=1
+            
+                ## temp report (wait)    
+            if serial_in[:2]=="T:":    
+                #collected M109/M190 Snnn temp (Set temp and  wait until reached)
+                pass
+                #ok is sent separately.
+            
+            if serial_in[:2]=="X:":    
+                #collected M114
+                self.lastPositionReply = serial_in
+                #ok is sent separately.
+            
+        #clear everything not recognized.
+            serial_in=""
+        
+    def getPositionReply(self):
+        while self.received<self.sent and self.sent>0 and not self.shutdown():
+            pass #wait!
+        return self.lastPositionReply
+    
+    def getTemperatureString(self):
+        ext_temp = 0
+        bed_temp = 0
+        ext_temp_target = 0
+        bed_temp_target = 0
+        while self.received<self.sent and self.sent>0 and not self.shutdown():
+            pass #wait!
+        if self.lastTemperatureReply != '':
+            temps=self.lastTemperatureReply.split(" ")
+                    
+            if is_number(temps[1].split(":")[1]):
+                ext_temp=float(temps[1].split(":")[1])
+            if is_number(temps[2].split("/")[1]):
+                ext_temp_target=float(temps[2].split("/")[1])
+            #print ext_temp_target
+            
+            if is_number(temps[3].split(":")[1]):
+                bed_temp=float(temps[3].split(":")[1])
+            
+            if is_number(temps[4].split("/")[1]):
+                bed_temp_target=float(temps[4].split("/")[1])
+                        
+            return 'Ext Temp/Target: %0.0f/%0.0f | Bed Temp/Target: %0.0f/%0.0f' % (ext_temp, ext_temp_target, bed_temp, bed_temp_target)
+        else:
+            return ''
+     
 console1 = CarriagePosition(log_console)
 
 try:
@@ -174,19 +228,21 @@ except:
     sys.exit()
 
 
-write_status(True)
+# write_status(True)
 
 '''#### SERIAL PORT COMMUNICATION ####'''
 serial_port = config.get('serial', 'port')
 serial_baud = config.get('serial', 'baud')
 
-serialPort = serial.Serial(serial_port, serial_baud, timeout=0.5)
+serialPort = GcodeSerial(serial_port, serial_baud, 0.5, getShutdown)
 serialPort.flushInput()
-macro("G91", "ok", 1, "set relative movements", 0)
- 
+serialPort.write("G91\r\n")
 
 def consoleUpdater():
     while 1:
+        if int(time.time()) % 5 == 0:
+            serialPort.write("M105\r\n")
+            console1.setTemperatureString(serialPort.getTemperatureString())
         console1.updateConsole()
         time.sleep(0.5)
         if shutdown:
@@ -215,7 +271,8 @@ consoleThread.setDaemon(True)
 consoleThread.start()  
 
 serialPort.write("M114\r\n")
-console1.setPostition(console1.stringToPos(serialPort.readall().rstrip()))
+console1.setPostition(console1.stringToPos(serialPort.getPositionReply()))
+
 
 jsThread = Thread(target=jsControl)   
 jsThread.setDaemon(True)
@@ -232,8 +289,6 @@ consoleThread.join()
 # clean the buffer and leave
 serialPort.flush()
 serialPort.close()
-write_status(False)
-open(log_trace, 'w').close()  # reset trace file
 console1.closeLogFile()
 sys.exit()  
     

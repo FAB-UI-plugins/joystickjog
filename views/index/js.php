@@ -228,7 +228,7 @@
     	
     	
     	interval_temperature = setInterval(function(){
-    			if(SOCKET_CONNECTED && ticker_url == '') {
+    			if(SOCKET_CONNECTED && ticker_url == '' && !joyActive) {
     				showTemperatureConsole=false;
     				make_call_ws("get_temperature", "");
     			}
