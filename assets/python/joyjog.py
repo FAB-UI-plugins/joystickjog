@@ -18,22 +18,22 @@ config.read('/var/www/fabui/python/config.ini')
 
 try:
       
-    log_trace = str(sys.argv[1])  # param for the log file
-    log_console = str(sys.argv[2])  # param for the log file
+#     log_trace = str(sys.argv[1])  # param for the log file
+    log_console = str(sys.argv[1])  # param for the log file
 
 except:
     print("Missing params")
     sys.exit()
     
 
-def trace(string):
-    global log_trace
-    out_file = open(log_trace, "a+")
-    out_file.write(str(string) + "\n")
-    out_file.close()
-    # headless
-    print string
-    return
+# def trace(string):
+#     global log_trace
+#     out_file = open(log_trace, "a+")
+#     out_file.write(str(string) + "\n")
+#     out_file.close()
+#     # headless
+#     print string
+#     return
 
 
 def is_number(s):
