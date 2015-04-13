@@ -126,7 +126,7 @@ class Joystickjog extends Plugin {
 		if($_is_internet_ok){
 			$cmd = 'sudo rm -r -f application/plugins/joystickjog/';
 			echo shell_exec($cmd);
-			$cmd = 'sudo git clone -b dev https://github.com/FAB-UI-plugins/joystickjog.git application/plugins/joystickjog';
+			$cmd = 'sudo git clone https://github.com/FAB-UI-plugins/joystickjog.git application/plugins/joystickjog';
 			echo shell_exec($cmd);
 		
 		}
