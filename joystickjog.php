@@ -2,7 +2,7 @@
 /*
 Plugin Name: Joystick Jog
 Plugin URI: http://github.com/FAB-UI-plugins/joystickjog
-Version: 0.51
+Version: 0.52
 Description: Jog using ps3 controller
 Author: Tom Haraldseid
 Author URI: 
@@ -30,7 +30,8 @@ class Joystickjog extends Plugin {
         if(is_printer_busy()){
             redirect('dashboard');
         }
-        
+        /** LOAD HELPER */
+        $this->load->helper('update_helper');
         $this->lang->load($_SESSION['language']['name'], $_SESSION['language']['name']);
         
 	}
@@ -123,13 +124,13 @@ class Joystickjog extends Plugin {
 		
 	
 		if($_is_internet_ok){
-		$cmd = 'sudo rm -r -f application/plugins/joystickjog/';
-		echo shell_exec($cmd);
-		$cmd = 'sudo git clone -b dev https://github.com/FAB-UI-plugins/joystickjog.git application/plugins/joystickjog';
-		echo shell_exec($cmd);
-		redirect(MY_PLUGIN_URL);
-		}
+			$cmd = 'sudo rm -r -f application/plugins/joystickjog/';
+			echo shell_exec($cmd);
+			$cmd = 'sudo git clone -b dev https://github.com/FAB-UI-plugins/joystickjog.git application/plugins/joystickjog';
+			echo shell_exec($cmd);
 		
+		}
+		redirect(MY_PLUGIN_URL);
 
 	
 	}
