@@ -119,12 +119,18 @@ class Joystickjog extends Plugin {
 	
 	public function update()
 	{
+		$_is_internet_ok = is_internet_avaiable();
+		
 	
+		if($_is_internet_ok){
 		$cmd = 'sudo rm -r -f application/plugins/joystickjog/';
 		echo shell_exec($cmd);
 		$cmd = 'sudo git clone -b dev https://github.com/FAB-UI-plugins/joystickjog.git application/plugins/joystickjog';
 		echo shell_exec($cmd);
 		redirect(MY_PLUGIN_URL);
+		}
+		
+
 	
 	}
 
