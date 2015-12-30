@@ -1,14 +1,16 @@
 import sys
-import time, datetime
+import time
 import serial
 import json
 import ConfigParser
-import logging
 import ps3
 from time import sleep
 import re
 from threading import Thread, Lock
 from joyFunctions import FabJoyFunctions
+from subprocess import call
+import BaseHTTPServer
+from urlparse import parse_qs
 
 shutdown = False
 
@@ -17,24 +19,22 @@ config.read('/var/www/fabui/python/config.ini')
 
 
 try:
-      
-#     log_trace = str(sys.argv[1])  # param for the log file
-    log_console = str(sys.argv[1])  # param for the log file
+#     pass 
+    task_id = str(sys.argv[1])
 
 except:
     print("Missing params")
     sys.exit()
     
+HOST_NAME = ''
+PORT_NUMBER = 9002
 
-# def trace(string):
-#     global log_trace
-#     out_file = open(log_trace, "a+")
-#     out_file.write(str(string) + "\n")
-#     out_file.close()
-#     # headless
-#     print string
-#     return
+jsonEnc = json.JSONEncoder()
 
+def setShutdown():
+    global shutdown
+    shutdown = True
+    serialPort.write('M0')
 
 def is_number(s):
     try:
@@ -48,44 +48,11 @@ def getShutdown():
 
 class CarriagePosition():
     
-    def __init__(self, logFile):
+    def __init__(self):
         self._rePosCode = re.compile('X:?(.?\d+\.?\d*)\s*Y:?(.?\d+\.?\d*)\s*Z:?(.?\d+\.?\d*)\s*')
         self.mut = Lock()
         self.position = (0, 0, 0)
-        self.prependString = ''
-        self.appendString = ''
-        self.temperatureString = ''
-        self.logFile = logFile
-        self._console = None
-        self._openLogFile()
         
-    def _openLogFile(self):
-        self._console = open(self.logFile, 'w')
-    
-    def _writeLogFile(self, string):
-        if self._console == None:
-            self._openLogFile()
-         
-        self._console.seek(0)
-        self._console.write(string)
-        self._console.truncate()
-        self._console.flush()
-        
-    def closeLogFile(self):
-        if not self._console == None:
-            self._console.seek(0)
-            self._console.truncate()
-            self._console.close()
-                  
-    def setPrependString(self, string):
-        self.prependString = string
-        
-    def setAppendString(self, string):
-        self.appendString = string
-        
-    def setTemperatureString(self, string):
-        self.temperatureString = string
-    
     def setPostition(self, pos):
         self.mut.acquire()
         self.position = pos
@@ -98,18 +65,11 @@ class CarriagePosition():
         self.mut.acquire()
         self.position = tuple(map(sum, zip(self.position, pos)))
         self.mut.release()
-    
-    def updateConsole(self):
-        self.mut.acquire()
-        pos = self.position
-        self.mut.release()
-        self._writeLogFile(self.prependString + self.temperatureString + '\nX%0.2f Y%0.2f Z%0.2f\n' % pos + self.appendString)
-        
+      
     def stringToPos(self, string):
         try:
             posGroup = self._rePosCode.search(string).groups()
             return (float(posGroup[0]), float(posGroup[1]), float(posGroup[2]))
-#             self.pos = (self.pos[0] + pos[0], self.pos[1] + pos[1], self.pos[2] + pos[2])
         except:
             return (0.0, 0.0, 0.0)
 
@@ -125,6 +85,9 @@ class GcodeSerial(serial.Serial):
         self.listenThread = Thread(target=self.listener)
         self.listenThread.setDaemon(True)
         self.listenThread.start()
+        self.pollThread = Thread(target=self.tempPoll)
+        self.pollThread.setDaemon(True)
+        self.pollThread.start()
         
         
     def write(self, data):
@@ -136,6 +99,10 @@ class GcodeSerial(serial.Serial):
         
         return serial.Serial.write(self, data)
     
+    def tempPoll(self):
+        while not self.shutdown():
+            self.write('M105\r\n')
+            time.sleep(2.0)
     
     def listener(self):
 
@@ -186,17 +153,16 @@ class GcodeSerial(serial.Serial):
             serial_in=""
         
     def getPositionReply(self):
-        while self.received<self.sent and self.sent>0 and not self.shutdown():
-            pass #wait!
+        
         return self.lastPositionReply
     
-    def getTemperatureString(self):
+    
+    def getTemperature(self):
         ext_temp = 0
         bed_temp = 0
         ext_temp_target = 0
         bed_temp_target = 0
-        while self.received<self.sent and self.sent>0 and not self.shutdown():
-            pass #wait!
+        
         if self.lastTemperatureReply != '':
             temps=self.lastTemperatureReply.split(" ")
                     
@@ -212,23 +178,109 @@ class GcodeSerial(serial.Serial):
             if is_number(temps[4].split("/")[1]):
                 bed_temp_target=float(temps[4].split("/")[1])
                         
-            return 'Ext Temp/Target: %0.0f/%0.0f | Bed Temp/Target: %0.0f/%0.0f' % (ext_temp, ext_temp_target, bed_temp, bed_temp_target)
+            return (ext_temp, ext_temp_target, bed_temp, bed_temp_target)
         else:
-            return ''
+            return (0,0,0,0)
+    
+    def getTemperatureString(self):
+        return 'Ext Temp/Target: %0.0f/%0.0f | Bed Temp/Target: %0.0f/%0.0f' % self.getTemperature()
+        
+
+
+class MyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
+
+    def do_POST(s):
+        """Respond to a POST request."""
+        s.send_response(200)
+        s.send_header("Content-type", "json")
+        s.send_header("Access-Control-Allow-Origin", "*")
+        s.end_headers()
+        
+        length = int(s.headers.getheader('content-length'))
+        postvars = parse_qs(s.rfile.read(length), keep_blank_values=1)
+        s.wfile.write(handlePostRequest(postvars))
+
+values = { 
+        'message' : '',
+        'e-sp' : 0,
+        'e-temp' : 0,
+        'bed-sp' : 0,
+        'bed-temp' : 0,
+        'x-pos' : 0,
+        'y-pos' : 0,
+        'z-pos' : 0,
+        'e-pos' : 0,
+        'button-conf' : {}
+}
+
+def setMessage(msg):
+    global values
+    values['message'] += msg
+
+def handlePostRequest(postvars):
+    responsvars = {}
+    global values
+    
+    #postvars: type:
+    #                 - command
+    #                 - update
+    #                 - config
+
+    
+    print postvars
+    if postvars['type'][0] == 'command':
+        responsvars['type'] = 'command'
+        if postvars['action'][0] == 'shutdown':
+            setShutdown()
+            
+        elif postvars['action'][0] == 'mdi':
+            serialPort.write(postvars['mdi'][0])
+            responsvars['result'] = 'ok'
+            
+        elif postvars['action'][0] == 'config':
+            pass
+
+        
+        
+    elif postvars['type'][0] == 'update':
+        
+        responsvars['type'] = 'update'
+        values['e-temp'], values['e-sp'], values['bed-temp'], values['bed-sp'] = serialPort.getTemperature()
+        values['x-pos'], values['y-pos'], values['z-pos'] = position.getPosition()
+        responsvars.update(values)
+        values['message'] = ''
+    
+    
+    return jsonEnc.encode(responsvars)
+
+
+server_class = BaseHTTPServer.HTTPServer
+httpd = server_class((HOST_NAME, PORT_NUMBER), MyHandler)
+httpd.timeout = 2.0
+
+def httpTask():
+    try:
+        while not getShutdown(): 
+            httpd.handle_request()
+    except:
+        pass
+    httpd.server_close()
      
-console1 = CarriagePosition(log_console)
+position = CarriagePosition()
+
+httpThread = Thread(target=httpTask)   
+httpThread.setDaemon(True)
+httpThread.start()
 
 try:
     js = ps3.Ps3Com()
 except:
-    console1.setPrependString('Joystick not found!\n')
-    console1.updateConsole()
+    setMessage('Joystick not found!\n')
+    setShutdown()
     sleep(1) 
-    console1.closeLogFile()
     sys.exit()
 
 
-# write_status(True)
 
 '''#### SERIAL PORT COMMUNICATION ####'''
 serial_port = config.get('serial', 'port')
@@ -238,57 +290,50 @@ serialPort = GcodeSerial(serial_port, serial_baud, 0.5, getShutdown)
 serialPort.flushInput()
 serialPort.write("G91\r\n")
 
-def consoleUpdater():
-    while 1:
-        if int(time.time()) % 5 == 0:
-            serialPort.write("M105\r\n")
-            console1.setTemperatureString(serialPort.getTemperatureString())
-        console1.updateConsole()
-        time.sleep(0.5)
-        if shutdown:
-            break
+
       
 def jsControl():
     
-    functions = FabJoyFunctions(serialPort, console1)
+    functions = FabJoyFunctions(serialPort, position)
+    functions.msg_callback = setMessage
       
-    while 1:
+    while not getShutdown():
         try:
             status = js.getStatus()
         except:
-            console1.setPrependString('Joystick disconnected!\n')
+            setMessage('Joystick disconnected!\n')
+            setShutdown()
             break
             
     
         if status['ButtonCircle']:
-            console1.setPrependString('Joystick Jog aborted\n')
+            setMessage('Joystick Jog aborted\n')
+            setShutdown()
             break
                              
         functions.callFunctions(status)
 
-consoleThread = Thread(target=consoleUpdater)
-consoleThread.setDaemon(True)
-consoleThread.start()  
 
 serialPort.write("M114\r\n")
-console1.setPostition(console1.stringToPos(serialPort.getPositionReply()))
+position.setPostition(position.stringToPos(serialPort.getPositionReply()))
 
 
 jsThread = Thread(target=jsControl)   
 jsThread.setDaemon(True)
 jsThread.start()       
   
-console1.setPrependString('Ready for joystick jog!\n')
+setMessage('Ready for joystick jog!\n')
 
    
 
 jsThread.join()
+httpThread.join()
 sleep(1)
-shutdown = True
-consoleThread.join()
+
+
 # clean the buffer and leave
 serialPort.flush()
 serialPort.close()
-console1.closeLogFile()
-sys.exit()  
-    
+
+
+call (['sudo php /var/www/fabui/application/plugins/joystickjog/ajax/finalize.php '+str(task_id)+' JoyJog'], shell=True)

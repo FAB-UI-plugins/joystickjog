@@ -38,13 +38,16 @@ class FabJoyFunctions(object):
                     }
 
 
-    def __init__(self, serialPort, console):
+    def __init__(self, serialPort, position):
         self.serialPort = serialPort
-        self.console = console
         self.activeFunctions = {}
         self._setupFunctions()
         self.feedRateOverride = 1.0
+        self.msg_callback = self.dummy_callback
+        self.position = position
         
+    def dummy_callback(self, msg):
+        pass
     
     def _setupFunctions(self):
         f = open('/var/www/fabui/application/plugins/joystickjog/assets/python/jsbuttons.json', 'r')
@@ -93,7 +96,7 @@ class FabJoyFunctions(object):
         if move:
             self.serialPort.write(gCode + "\r\n")
             #self.serialPort.readline().rstrip()
-            self.console.updatePosition(self.console.stringToPos(gCode))
+            self.position.updatePosition(self.position.stringToPos(gCode))
             return
         
         for key, value in self.activeFunctions.iteritems():
@@ -124,7 +127,7 @@ class FabJoyFunctions(object):
     
     def eAxisFwd(self, dVal, aVal, param):
         if aVal > 0:
-            self.console.setAppendString('E-axis Forward')
+            self.msg_callback('E-axis Forward')
             try:
                 param = float(param)
                 if not 10.0 <= param <= 1000.0:
@@ -139,7 +142,7 @@ class FabJoyFunctions(object):
             
     def eAxisRev(self, dVal, aVal, param):
         if aVal > 0:
-            self.console.setAppendString('E-axis Reverse')
+            self.msg_callback('E-axis Reverse')
             try:
                 param = float(param)
                 if not 10.0 <= param <= 1000.0:
@@ -161,12 +164,12 @@ class FabJoyFunctions(object):
                 self.serialPort.write("M401\r\n")
                 #self.serialPort.readall()
                 self.zProbeDown = True
-                self.console.setAppendString('Z-Probe Down')
+                self.msg_callback('Z-Probe Down')
             else:
                 self.serialPort.write("M402\r\n")
                 #self.serialPort.readall()
                 self.zProbeDown = False
-                self.console.setAppendString('Z-Probe Up')
+                self.msg_callback('Z-Probe Up')
         elif not dVal and self.zProbeMem:
             self.zProbeMem = False
 
@@ -174,7 +177,7 @@ class FabJoyFunctions(object):
         if dVal:
             self.serialPort.write("M999\r\n")
             #self.serialPort.readall() 
-            self.console.setAppendString('Reset safety warning')
+            self.msg_callback('Reset safety warning')
             self.serialPort.write("M300\r\n")
             #self.serialPort.readall()
             
@@ -189,7 +192,7 @@ class FabJoyFunctions(object):
             if self.feedRateOverride > 2.0:
                 self.feedRateOverride = 2.0
             
-            self.console.setAppendString('Speed: %0.0f%s' % (self.feedRateOverride * 100, '%'))
+            self.msg_callback('Speed: %0.0f%s' % (self.feedRateOverride * 100, '%'))
             self.serialPort.write("M300\r\n")
             #self.serialPort.readall()
             time.sleep(0.5)
@@ -205,14 +208,14 @@ class FabJoyFunctions(object):
             if self.feedRateOverride < 0.0:
                 self.feedRateOverride = 0.0
             
-            self.console.setAppendString('Speed: %0.0f%s' % (self.feedRateOverride * 100, '%'))
+            self.msg_callback('Speed: %0.0f%s' % (self.feedRateOverride * 100, '%'))
             self.serialPort.write("M300\r\n")
             #self.serialPort.readall()
             time.sleep(0.5)
        
     def setZero(self, dVal, aVal, param):
         if dVal:
-            self.console.setAppendString('Set Zero position')
+            self.msg_callback('Set Zero position')
             self.serialPort.write("G92 X0 Y0 Z0\r\n")
             #self.serialPort.readall()
             
@@ -223,8 +226,8 @@ class FabJoyFunctions(object):
             
             
             self.serialPort.write("M114\r\n")
-            self.console.setPostition(self.console.stringToPos(self.serialPort.getPositionReply()))
-#             self.console.setPostition(self.console.stringToPos(self.serialPort.readall().rstrip()))
+            self.position.setPostition(self.position.stringToPos(self.serialPort.getPositionReply()))
+#             self.position.setPostition(self.position.stringToPos(self.serialPort.readall().rstrip()))
 
     def gotoZero(self, dVal, aVal, param):
         if dVal:
@@ -235,7 +238,7 @@ class FabJoyFunctions(object):
             except:
                 param = 3000.0
                 
-            self.console.setAppendString('Goto zero position')
+            self.msg_callback('Goto zero position')
             self.serialPort.write("G90\r\n")
             #self.serialPort.readall()
             self.serialPort.write("G0 X0 Y0 Z0 F%0.0f\r\n" % (param,))
@@ -245,7 +248,7 @@ class FabJoyFunctions(object):
             
             
             self.serialPort.write("M114\r\n")
-            self.console.setPostition(self.console.stringToPos(self.serialPort.getPositionReply()))
+            self.position.setPostition(self.position.stringToPos(self.serialPort.getPositionReply()))
             
     
     toggleSlowSpeedMem = False
@@ -262,14 +265,14 @@ class FabJoyFunctions(object):
             self.toggleSlowSpeedMem = True
             if self.feedRateOverride > param:
                 self.feedRateOverride = param
-                self.console.setAppendString('Set creep speed')
+                self.msg_callback('Set creep speed')
                 self.serialPort.write("M300\r\n")
                 #self.serialPort.readall()
                 self.serialPort.write("M300\r\n")
                 #self.serialPort.readall()
             else:
                 self.feedRateOverride = 1.0
-                self.console.setAppendString('Set normal speed')
+                self.msg_callback('Set normal speed')
                 self.serialPort.write("M300\r\n")
                 #self.serialPort.readall()
         elif not dVal and self.toggleSlowSpeedMem:
@@ -290,7 +293,7 @@ class FabJoyFunctions(object):
             self.toggleExtTempMem = True
             if self.toggleExtTempSp == 0.0:
                 self.toggleExtTempSp = param
-                self.console.setAppendString('Set Extruder temp to %0.0fC' % (param,))
+                self.msg_callback('Set Extruder temp to %0.0fC' % (param,))
                 self.serialPort.write("M104 S%0.0f\r\n" % (param,))
                 #self.serialPort.readall()
                 self.serialPort.write("M300\r\n")
@@ -299,7 +302,7 @@ class FabJoyFunctions(object):
                 #self.serialPort.readall()
             else:
                 self.toggleExtTempSp = 0.0
-                self.console.setAppendString('Set Extruder temp to 0C')
+                self.msg_callback('Set Extruder temp to 0C')
                 self.serialPort.write("M104 S0\r\n")
                 #self.serialPort.readall()
                 self.serialPort.write("M300\r\n")
@@ -322,7 +325,7 @@ class FabJoyFunctions(object):
             self.toggleBedTempMem = True
             if self.toggleBedTempSp == 0.0:
                 self.toggleBedTempSp = param
-                self.console.setAppendString('Set Bed temp to %0.0fC' % (param,))
+                self.msg_callback('Set Bed temp to %0.0fC' % (param,))
                 self.serialPort.write("M140 S%0.0f\r\n" % (param,))
                 #self.serialPort.readall()
                 self.serialPort.write("M300\r\n")
@@ -331,7 +334,7 @@ class FabJoyFunctions(object):
                 #self.serialPort.readall()
             else:
                 self.toggleBedTempSp = 0.0
-                self.console.setAppendString('Set Bed temp to 0C')
+                self.msg_callback('Set Bed temp to 0C')
                 self.serialPort.write("M140 S0\r\n")
                 #self.serialPort.readall()
                 self.serialPort.write("M300\r\n")
