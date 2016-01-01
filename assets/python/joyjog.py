@@ -33,8 +33,13 @@ jsonEnc = json.JSONEncoder()
 
 def setShutdown():
     global shutdown
+    setMessage('Joystick Jog aborted')
     shutdown = True
-    serialPort.write('M0')
+    try:
+        serialPort.write('M0')
+    except:
+        pass
+    
 
 def is_number(s):
     try:
@@ -82,17 +87,25 @@ class GcodeSerial(serial.Serial):
         self.sent = 0
         self.lastPositionReply = ''
         self.lastTemperatureReply = ''
+        self.lastReply = ''
         self.listenThread = Thread(target=self.listener)
         self.listenThread.setDaemon(True)
         self.listenThread.start()
         self.pollThread = Thread(target=self.tempPoll)
         self.pollThread.setDaemon(True)
         self.pollThread.start()
+        self.counterLock = Lock()
         
         
     def write(self, data):
-        while self.received<self.sent and self.sent>0 and not self.shutdown():
-            pass #wait!
+        print 'Sent:', str(self.sent), '/ Received:', str(self.received)
+        waitCount = 0
+        while not self.received==self.sent and not self.shutdown():
+            time.sleep(0.01)
+            waitCount +=1
+            if waitCount >= 100:
+                self.received = self.sent
+            #wait!
 #         print 'Sent: %i, received: %i' % (self.sent, self.received)
 #         console1.setAppendString('Sent: %i, received: %i' % (self.sent, self.received))
         self.sent += 1
@@ -101,8 +114,12 @@ class GcodeSerial(serial.Serial):
     
     def tempPoll(self):
         while not self.shutdown():
+            serialPort.write("M114\r\n")
+            position.setPostition(position.stringToPos(self.getPositionReply()))
+            
             self.write('M105\r\n')
-            time.sleep(2.0)
+            time.sleep(1.0)
+            
     
     def listener(self):
 
@@ -149,11 +166,28 @@ class GcodeSerial(serial.Serial):
                 self.lastPositionReply = serial_in
                 #ok is sent separately.
             
+            self.lastReply = serial_in
         #clear everything not recognized.
             serial_in=""
+       
+    def getLastReply(self):
+        waitCount = 0
+        while not self.received==self.sent and not self.shutdown():
+            time.sleep(0.01)
+            waitCount +=1
+            if waitCount >= 100:
+                self.received = self.sent
+                
+        return self.lastReply
         
     def getPositionReply(self):
-        
+        waitCount = 0
+        while not self.received==self.sent and not self.shutdown():
+            time.sleep(0.01)
+            waitCount +=1
+            if waitCount >= 100:
+                self.received = self.sent
+                
         return self.lastPositionReply
     
     
@@ -215,12 +249,13 @@ values = {
 
 def setMessage(msg):
     global values
-    values['message'] += msg
+    values['message'] += msg + '\n'
 
 def handlePostRequest(postvars):
-    responsvars = {}
+    responsvars = {'type':'', 'action':'', 'reply':''}
     global values
-    
+
+ 
     #postvars: type:
     #                 - command
     #                 - update
@@ -232,11 +267,55 @@ def handlePostRequest(postvars):
         responsvars['type'] = 'command'
         if postvars['action'][0] == 'shutdown':
             setShutdown()
+            return
+            
+        elif postvars['action'][0] == 'up':
+            serialPort.write("G0 Y%0.3f F%0.0f\r\n" % (float(postvars['step'][0]), float(postvars['feedrate'][0])))
+        
+        elif postvars['action'][0] == 'down':
+            serialPort.write("G0 Y-%0.3f F%0.0f\r\n" % (float(postvars['step'][0]), float(postvars['feedrate'][0])))
+        
+        elif postvars['action'][0] == 'right':
+            serialPort.write("G0 X%0.3f F%0.0f\r\n" % (float(postvars['step'][0]), float(postvars['feedrate'][0])))
+        
+        elif postvars['action'][0] == 'left':
+            serialPort.write("G0 X-%0.3f F%0.0f\r\n" % (float(postvars['step'][0]), float(postvars['feedrate'][0])))
+        
+        elif postvars['action'][0] == 'up-left':
+            serialPort.write("G0 X-%0.3f Y%0.3f F%0.0f\r\n" % (float(postvars['step'][0]), float(postvars['step'][0]), float(postvars['feedrate'][0])))
+        
+        elif postvars['action'][0] == 'up-right':
+            serialPort.write("G0 X%0.3f Y%0.3f F%0.0f\r\n" % (float(postvars['step'][0]), float(postvars['step'][0]), float(postvars['feedrate'][0])))
+        
+        elif postvars['action'][0] == 'down-left':
+            serialPort.write("G0 X-%0.3f Y-%0.3f F%0.0f\r\n" % (float(postvars['step'][0]), float(postvars['step'][0]), float(postvars['feedrate'][0])))
+        
+        elif postvars['action'][0] == 'down-right':
+            serialPort.write("G0 X%0.3f Y-%0.3f F%0.0f\r\n" % (float(postvars['step'][0]), float(postvars['step'][0]), float(postvars['feedrate'][0])))
+        
+        elif postvars['action'][0] == 'home':
+            serialPort.write("G90\r\n")
+            serialPort.write("G0 X0 Y0 F%0.0f\r\n" % (float(postvars['feedrate'][0]),))
+            serialPort.write("G91\r\n")
+        
+        elif postvars['action'][0] == 'zup':
+            serialPort.write("G0 Z-%0.3f F%0.0f\r\n" % (float(postvars['zstep'][0]), float(postvars['feedrate'][0])))
+        
+        elif postvars['action'][0] == 'zdown':
+            serialPort.write("G0 Z%0.3f F%0.0f\r\n" % (float(postvars['zstep'][0]), float(postvars['feedrate'][0])))
+        
+        
             
         elif postvars['action'][0] == 'mdi':
-            serialPort.write(postvars['mdi'][0])
-            responsvars['result'] = 'ok'
+            lines = str(postvars['mdi'][0]).splitlines()
+            responsvars['action'] = 'mdi'
+            for line in lines:
+                if len(line) > 0:
+                    serialPort.write(line + '\n')
+                    responsvars['reply'] += serialPort.getLastReply() + '\n'
             
+            
+                
         elif postvars['action'][0] == 'config':
             pass
 
@@ -275,8 +354,9 @@ httpThread.start()
 try:
     js = ps3.Ps3Com()
 except:
-    setMessage('Joystick not found!\n')
+    setMessage('Joystick not found!')
     setShutdown()
+    call (['sudo php /var/www/fabui/application/plugins/joystickjog/ajax/finalize.php '+str(task_id)+' JoyJog'], shell=True)
     sleep(1) 
     sys.exit()
 
@@ -301,13 +381,13 @@ def jsControl():
         try:
             status = js.getStatus()
         except:
-            setMessage('Joystick disconnected!\n')
+            setMessage('Joystick disconnected!')
             setShutdown()
             break
             
     
         if status['ButtonCircle']:
-            setMessage('Joystick Jog aborted\n')
+            setMessage('Joystick Jog aborted')
             setShutdown()
             break
                              
@@ -322,7 +402,7 @@ jsThread = Thread(target=jsControl)
 jsThread.setDaemon(True)
 jsThread.start()       
   
-setMessage('Ready for joystick jog!\n')
+setMessage('Ready for joystick jog!')
 
    
 

@@ -37,6 +37,30 @@ class Joystickjog extends Plugin {
 	}
 
 	public function index(){
+		
+		$this->load->model('tasks');
+		$this->load->helper('os_helper');
+		
+		$_task = $this->tasks->get_running('joystickjog', 'JoyJog');
+		$_running = $_task ? true : false;
+		
+		if($_running){
+		
+			/** GET TASK ATTRIBUTES */
+			$_attributes = json_decode($_task['attributes'], TRUE);
+				
+				
+			/** CHECK IF PID IS STILL ALIVE */
+			if(!exist_process($_attributes['pid'])){
+				
+				/** PROCESS IS DEAD */
+				$_running = false;
+				$this->tasks->delete($_task['id']);
+		
+			}
+		
+		}
+		
 
 		$this->layout->add_js_file(array('src'=>'application/layout/assets/js/plugin/flot/jquery.flot.cust.min.js', 'comment'=>'create utilities'));
 		$this->layout->add_js_file(array('src'=>'application/layout/assets/js/plugin/flot/jquery.flot.resize.min.js', 'comment'=>'create utilities'));

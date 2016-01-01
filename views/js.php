@@ -8,7 +8,7 @@ var bed_temperatures = [];
 var nozzlePlot = "";
 var now = new Date().getTime();
 var values = [];
-
+var message = '';
 var $chrt_border_color = "#efefef";
 var $chrt_grid_color = "#DDD";
 var $chrt_main = "#E24913";
@@ -29,6 +29,7 @@ var autoActive = false;
 var pid = 0;
 var extruder = 0;
 
+
 $(document).ready(function() {
 
 	$(".actionButton").on('click', function() {
@@ -43,14 +44,89 @@ $(document).ready(function() {
 
 	});
 
+	$("#run").on('click', function() {
+		sendReceive({type: 'command', action: 'mdi', mdi: $("#mdi").val().toUpperCase()});
+	});
+
+	$(".directions").on("click", function() {
+		
+		sendReceive({type: "command", 
+			         action: $(this).attr("data-attribute-direction"), 
+			         zstep: $("#z-step").val(), 
+			         step: $("#step").val(), 
+			         feedrate: $("#feedrate").val()
+			        });
+		
+	});
+
+	$("#z-step").spinner({
+		step : 0.01,
+		numberFormat : "n",
+		min: 0
+	});
+	
+	
+	$("#step").spinner({
+			step :0.5,
+			numberFormat : "n",
+			min: 0
+	});
+	
+	$("#feedrate").spinner({
+			step :50,
+			numberFormat : "n",
+			min: 0
+	});
+
 
 
 	initGraphs();
 	update();
+	drawExtruder(100, 100);
+	drawPs3Img();
 	
 	
 }); /* End of init */
 
+
+
+function drawExtruder(x, y) {
+
+	var canvas = document.getElementById("bed-canvas");
+	var ctx = canvas.getContext("2d");
+	var xScale = (canvas.width - 5) / 210.0;
+	var yScale = (canvas.height - 15) / 230.0; 
+
+	x = (5 + x) * xScale;
+	y = canvas.height - ((15 + y) * yScale);
+	
+	var img=document.getElementById("bed-img");
+    ctx.drawImage(img,40,0,441,520,0,0,480, 540);
+
+	var crossSize = 20;
+	ctx.beginPath();
+	ctx.moveTo(x - crossSize, y);
+	ctx.lineTo(x + crossSize, y);
+	ctx.moveTo(x , y-crossSize);
+	ctx.lineTo(x , y+crossSize);
+	
+	ctx.stroke();
+	
+}
+
+function drawPs3Img() {
+
+	var canvas = document.getElementById("ps3-canvas");
+	var ctx = canvas.getContext("2d");
+	
+
+	
+	var img=document.getElementById("ps3-img");
+    ctx.drawImage(img,0,0,1023, 767);
+
+
+	
+}
 
 function update() {
 	sendReceive({type: 'update'});
@@ -188,6 +264,9 @@ function  initGraphs(){
 				
 				shadowSize : 0
 			},
+			legend: {
+				noColumns: 1
+			},
 			xaxis: {
 			    mode: "time",
 			    show: true
@@ -230,7 +309,14 @@ var data = {
         time: now,
         run: true
     };
+function updateConsole(msg) {
 
+	message += msg;
+	$("#console").html(message);
+	var psconsole = $('#console');
+    psconsole.scrollTop(psconsole[0].scrollHeight - psconsole.height());
+	
+}
 function handleReturn(data) {
 
 /* 	console.log(data); */	
@@ -247,8 +333,20 @@ function handleReturn(data) {
 		addNozzleTemperature(parseFloat(data['e-temp']));
 		addBedTemperature(parseFloat(data['bed-temp']));
 		updateNozzleGraph();
+		updateConsole(data['message']);
+
+		drawExtruder(parseFloat(data['x-pos']),parseFloat(data['y-pos']));
+		$(".x-pos").html(parseFloat(data['x-pos']).toFixed(2));
+		$(".y-pos").html(parseFloat(data['y-pos']).toFixed(2));
+		$(".z-pos").html(parseFloat(data['z-pos']).toFixed(2));
+		
+	
 		
 			
+	}else if(data['type'] == 'command'){
+		updateConsole(data['reply']);
+		
+
 	}
 
 
