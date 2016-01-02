@@ -3,6 +3,20 @@
 
 <div class="row">
 	
+	<ul class="list-button pull-left">
+		<li>
+			<a id="start" class="my-btn" href="javascript:void(0)">Activate Joystick</a>
+		</li>
+		<li>
+			<a id="shutdown" class="actionButton my-btn" href="javascript:void(0)" hidden>Deactivate Joystick</a>
+		</li>
+		</ul>
+	
+
+</div>
+
+<div class="row">
+	
 	
 	<div class="col-md-6">
 	
@@ -143,19 +157,7 @@
 
 </div>
 
-<div class="row">
-	<div class="col-md-12">
-	<ul class="list-button pull-left">
-		<li>
-			<a id="start" class="my-btn" href="javascript:void(0)">Activate Joystick</a>
-		</li>
-		<li>
-			<a id="shutdown" class="actionButton my-btn" href="javascript:void(0)">Shut Down</a>
-		</li>
-		</ul>
-	</div>
 
-</div>
 
 <!-- HELP MODAL -->
 <div class="modal fade" tabindex="-1" role="dialog"  aria-hidden="true" id="manula-modal">

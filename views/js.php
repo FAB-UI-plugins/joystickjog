@@ -28,6 +28,7 @@ var manualActive = false;
 var autoActive = false;
 var pid = 0;
 var extruder = 0;
+var wd = 2;
 
 
 $(document).ready(function() {
@@ -41,6 +42,9 @@ $(document).ready(function() {
 
 	$("#start").on('click', function() {
 		acivateJoystick();
+		$("#start").attr("hidden",false);
+		$("#shutdown").attr("hidden",true);
+		wd = -5;
 
 	});
 
@@ -84,6 +88,7 @@ $(document).ready(function() {
 	update();
 	drawExtruder(100, 100);
 	drawPs3Img();
+
 	
 	
 }); /* End of init */
@@ -130,6 +135,17 @@ function drawPs3Img() {
 
 function update() {
 	sendReceive({type: 'update'});
+
+	wd += 1;
+	if(wd > 2) {
+		$("#start").attr("hidden",false);
+		$("#shutdown").attr("hidden",true);
+	} else {
+		$("#start").attr("hidden",true);
+		$("#shutdown").attr("hidden",false);
+	}
+	
+	
 	
 	
 
@@ -321,6 +337,7 @@ function handleReturn(data) {
 
 /* 	console.log(data); */	
 	
+	
 	if(data['type'] == 'update'){
 		 
 		
@@ -354,14 +371,14 @@ function handleReturn(data) {
 
 function sendReceive(data) {
 
-
+	
     $.ajax({
             type: "POST",
             url: 'http://' + window.location.hostname + ':9002/',
             data: data,
             dataType: "json"
         }).done(function(data) {
-        	
+        	wd = 0;
         	handleReturn(data);
         	
         });
