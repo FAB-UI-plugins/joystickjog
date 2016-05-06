@@ -371,7 +371,7 @@ function handleReturn(data) {
 
 function sendReceive(data) {
 
-	
+
     $.ajax({
             type: "POST",
             url: 'http://' + window.location.hostname + ':9002/',
